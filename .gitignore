@@ -1,0 +1,23 @@
+# Dependencies and generated artifacts
+node_modules/
+coverage/
+*.tgz
+
+# Local environment and credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# DSH runtime data and local configuration
+.dsh/
+
+# Logs, local patch backups and editor/OS files
+*.log
+*.jsonl
+*.jsonl.zstd
+*.dsa-before.backup
+.DS_Store
+.idea/
+.vscode/
