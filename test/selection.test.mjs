@@ -4,7 +4,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 let plugin
 vm.runInNewContext(readFileSync(new URL('../lib/client.js', import.meta.url), 'utf8'), {
-  window: { __ModuleLoader__: { load: entry => { plugin = entry.factory(name => { assert.ok(['react', '@deepseek-ai/dsh-client-ui-primitives'].includes(name)); return {} }) } } },
+  window: { __ModuleLoader__: { load: entry => { plugin = entry.factory(name => { assert.ok(['react', 'react-dom', '@deepseek-ai/dsh-client-ui-primitives'].includes(name)); return {} }) } } },
 })
 const { selectActivity, createModeStore, createPendingStore, ago, KEY, PENDING_KEY, MAX_RECORDS } = plugin.__test__
 const session = (id, updatedAt, more = {}) => ({ id, updatedAt, displayTitle: id, running: false, ...more })

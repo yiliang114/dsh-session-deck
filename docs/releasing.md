@@ -15,9 +15,20 @@ npm run verify
 npm pack --ignore-scripts
 ```
 
-`verify` runs JavaScript syntax checks, Node.js tests, and a dry-run package-content check. The repository has no npm dependencies and does not need `npm install`. The tarball includes the host entry, client bundle, Cordis configuration, English and Chinese READMEs, license, and optional sidebar patch script. Repository screenshots and this release guide are not included in the current package allowlist.
+`verify` runs JavaScript syntax checks, Node.js tests, and a dry-run package-content check. The repository has no npm dependencies and does not need `npm install`. The tarball includes the host entry, client bundle, Cordis configuration, English and Chinese READMEs, license, and legacy sidebar patch script retained for rollback and backward compatibility. Repository screenshots and this release guide are not included in the current package allowlist.
 
-Test installation and the three views in the real DSH 0.2.1-rc.2 GUI. Check native pins, waiting/running/unread behavior, nested known subagents, and the unpatched bottom-position fallback. Automated checks alone do not establish host compatibility. Capture screenshots from the actual English interface and avoid exposing private session content.
+Before shipping, verify the following in the real DSH **0.2.1-rc.2** GUI:
+
+- Test both linked and tarball installations without a host patch. Confirm that the switcher appears immediately above the workspace region, below global panels, and that installed DSH files remain unchanged.
+- Exercise all three views, native pins, waiting/running/unread behavior, and nested known subagents. Confirm that Workspaces preserves the native workspace browser and its controls.
+- Collapse and expand the sidebar, checking that the switcher remains usable and correctly positioned.
+- Disable the plugin and confirm that its scoped observer and DOM host are removed and the native workspace browser is restored. Re-enable it and check that only one switcher appears.
+- Exercise an unknown DOM layout and confirm that the adapter safely falls back to the footer.
+- Check compatibility with an existing legacy `sidebar.workspaces.before` slot. If testing rollback, use the original backups and do not overwrite unrelated changes; after rollback and refresh, confirm that the new plugin stays above the workspace region on unpatched rc.2.
+
+Automatic placement is a guarded DOM compatibility adapter using a React portal, not an official DSH API. Keep `engines.dsh` pinned to **0.2.1-rc.2**; rc.3 compatibility is unverified and unsupported. Automated checks alone do not establish host compatibility, and this checklist does not record completed verification.
+
+Recapture the README screenshots from the actual English interface on unpatched rc.2, showing automatic top placement. Use English, anonymized session titles and workspace names, omit browser chrome, and keep the existing filenames: [Activity](images/activity.png), [Favorites](images/favorites.png), and [Workspaces](images/workspaces.png).
 
 ## Bootstrap the npm package
 

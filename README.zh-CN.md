@@ -23,7 +23,7 @@
 | 掌握运行状态和未读结果。 | 回到原生置顶的重要会话。 | 保留完整的工作区操作。 |
 | ![英文 Activity 视图](docs/images/activity.png) | ![英文 Favorites 视图](docs/images/favorites.png) | ![英文原生 Workspaces 视图](docs/images/workspaces.png) |
 
-截图使用未打补丁的 DSH 侧栏，视图切换条位于底部；不包含浏览器顶部菜单、标签栏和地址栏。
+截图展示无需宿主补丁、自动位于全局面板下方和工作区区域上方的切换条。界面及匿名化后的会话标题使用英文；不包含浏览器顶部菜单、标签栏和地址栏。
 
 ## 本地安装
 
@@ -48,7 +48,7 @@ dsh plugin --profile web add "link:$PWD" --offline --ignore-scripts
 
 插件自身文案使用英文。要让 DSH 其他界面也显示英文，在 **更多 → 设置 → 通用设置 → 语言** 中选择 **English**。会话标题仍保留用户原来使用的语言。
 
-刷新现有 DSH GUI，然后在侧栏选择 **Workspaces / Activity / Favorites**。原版 DSH 的切换条位于底部；[可选侧栏补丁](#可选将切换条放到列表上方)可将它移到列表上方。修改客户端后也需要刷新，不应假定热更新已启用。
+刷新现有 DSH GUI，然后在全局面板下方、工作区区域上方选择 **Workspaces / Activity / Favorites**。在支持的 DSH 0.2.1-rc.2 布局中，插件会自动将切换条放到该位置，无需修改已安装的 DSH 文件。Workspaces 保留原生工作区浏览器。修改客户端后也需要刷新，不应假定热更新已启用。
 
 如果已安装本插件的早期本地版本，请先在 DSH 插件管理中停用并移除旧实例，避免同时接管侧栏；浏览器存储可以保留。
 
@@ -67,7 +67,7 @@ npm pack --ignore-scripts
 dsh plugin --profile web add /absolute/path/yiliang114-dsh-session-deck-0.1.0.tgz --ignore-scripts
 ```
 
-安装后刷新 GUI。tarball 安装不依赖原仓库目录持续存在，也不会自动应用宿主补丁。
+安装后刷新 GUI。tarball 安装不依赖原仓库目录持续存在。链接和 tarball 两种安装方式都会在支持的 rc.2 布局中自动将切换条放到工作区区域上方，无需宿主补丁。
 
 ### 后续 npm 安装与市场发现
 
@@ -98,36 +98,29 @@ https://raw.githubusercontent.com/yiliang114/dsh-session-deck/main/market-index.
 
 ## DSH 兼容性与切换条位置
 
-版本匹配和切换条位置是两个独立检查项。插件的 `engines.dsh` 精确声明支持 **0.2.1-rc.2**；这个版本上切换条位于底部，不表示插件过旧或版本不匹配。
+插件的 `engines.dsh` 精确声明支持 **0.2.1-rc.2**。自动顶部定位使用针对该版本的 DOM 兼容适配层，并非 DSH 官方扩展 API。
 
-| DSH 侧栏 | `sidebar.workspaces.before` | Session Deck 支持情况 |
+| DSH 侧栏 | 定位方式 | Session Deck 支持情况 |
 | --- | --- | --- |
-| 官方 **0.2.1-rc.2** | 不存在，切换条回退到底部。 | 已在真实 GUI 验证。 |
-| **0.2.1-rc.2** 加下述本地补丁 | 增加在全局面板入口（包括 Automation tasks）下方。 | 补丁脚本接受此版本并检查目标代码。 |
-| 官方 **0.2.1-rc.3** | 已发布的客户端及槽位声明中仍不存在。 | 插件整体兼容性尚未验证，当前版本声明不包含它。 |
+| 官方 **0.2.1-rc.2**，未打补丁 | 没有官方 `sidebar.workspaces.before` 槽位；适配层默认将切换条放到工作区区域上方。 | 当前支持目标，严格检查 rc.2 DOM 结构。 |
+| **0.2.1-rc.2** 加旧版本地补丁 | 复用全局面板下方已有的 `sidebar.workspaces.before` 槽位。 | 兼容，但已不再需要补丁。 |
+| 官方 **0.2.1-rc.3** | 已发布的客户端及槽位声明中仍没有 before 槽位。 | 不支持：整体兼容性未经验证，精确版本声明不包含它。 |
 
-以上 rc.3 发布文件检查于 **2026-10-23**。仅升级到 rc.3 不会补上这个槽位。补丁修改的是本地 DSH，并非官方更新，也不会随插件安装自动执行。支持其他宿主版本时，需要先验证会话、工作区、槽位和 UI 接口，再扩大 `engines.dsh` 或补丁脚本允许的版本范围。
+识别到 rc.2 布局时，适配层在工作区区域紧前方、Automation tasks 等全局面板下方插入自己的 DOM 容器，通过 React portal 渲染切换条。它不会写入已安装的 DSH 文件，也不会替换原生工作区浏览器。遇到未知 DOM 布局时回退到底部。停用插件会移除其限定范围的观察器和 DOM 容器。
 
-## 可选：将切换条放到列表上方
+rc.3 发布文件检查于 **2026-10-23**，该检查不能证明插件兼容。支持其他宿主版本时，需要先验证会话、工作区、槽位、UI 接口及 DOM 布局，再扩大 `engines.dsh` 的版本范围。
 
-DSH 0.2.1-rc.2 尚未在此处提供官方扩展槽位。[侧栏补丁脚本](scripts/patch-sidebar-before.mjs)会在全局面板入口之后、工作区区域之前增加本地 `sidebar.workspaces.before` 槽位。**不打补丁也可正常使用插件**，切换条自动回退到底部。
+## 旧版侧栏补丁回滚
+
+[侧栏补丁脚本](scripts/patch-sidebar-before.mjs)保留用于回滚和向后兼容，新安装无需执行。如果之前安装过本地 before 槽位补丁，插件可以继续复用该槽位，也可以恢复原侧栏。
 
 找到当前运行的 DSH 实际加载的 `@deepseek-ai/dsh-client-ui-sidebar` 包目录，在本仓库中执行以下命令。占位路径应替换为该侧栏包目录，而非 DSH 根目录或本插件目录：
-
-```sh
-node scripts/patch-sidebar-before.mjs /path/to/dsh-client-ui-sidebar
-node --check /path/to/dsh-client-ui-sidebar/lib/client.js
-```
-
-脚本仅接受 **0.2.1-rc.2**，写入前检查两个目标文件，并保存相邻的 `.dsa-before.backup` 备份。支持重复执行，遇到不匹配的代码会拒绝修改。应用后刷新 GUI。
-
-恢复原侧栏：
 
 ```sh
 node scripts/patch-sidebar-before.mjs /path/to/dsh-client-ui-sidebar --rollback
 ```
 
-恢复依赖原始备份，并会拒绝覆盖无关改动。刷新后切换条回到底部。DSH 重装或升级可能覆盖补丁，重新应用前请检查兼容性。如果修改的是 DSH 源码仓库，还需重新构建相关客户端产物。
+恢复依赖原始的相邻 `.dsa-before.backup` 备份，并会拒绝覆盖无关改动。回滚后刷新 GUI：在支持的未打补丁 rc.2 布局中，新插件仍会将切换条放到工作区区域上方。如果回滚的是 DSH 源码仓库，还需重新构建相关客户端产物。
 
 ## 隐私与本地存储
 
@@ -142,7 +135,7 @@ node scripts/patch-sidebar-before.mjs /path/to/dsh-client-ui-sidebar --rollback
 
 插件不在其中保存会话正文。收藏仍使用 DSH 原生置顶数据。视图和未读状态在同源标签页间同步，不跨设备同步；存储不可用时仅保留在内存中。清除浏览器存储会重置这些元数据。已处理记录最多保留 1,000 条，运行中和未读记录不受此清理上限影响。
 
-停用时，在 DSH 插件管理中禁用或移除 **`@yiliang114/dsh-session-deck`**。移除不会清除浏览器存储，也不会撤销宿主补丁，后者请单独执行恢复命令。
+停用时，在 DSH 插件管理中禁用或移除 **`@yiliang114/dsh-session-deck`**。停用会移除适配层的观察器和 DOM 容器，并恢复原生工作区浏览器。移除不会清除浏览器存储，也不会撤销旧版宿主补丁；如需撤销，请单独执行恢复命令。
 
 ## 开发
 

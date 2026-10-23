@@ -23,7 +23,7 @@ Switching views keeps your current conversation open. Session rows show the titl
 | Follow active work and unread results. | Return to native pinned sessions. | Keep the complete workspace controls. |
 | ![English Activity view](docs/images/activity.png) | ![English Favorites view](docs/images/favorites.png) | ![English native Workspaces view](docs/images/workspaces.png) |
 
-Screenshots show the unmodified DSH sidebar, with the view switcher at the bottom. Browser menus, tabs, and the address bar are excluded.
+Screenshots show the switcher above the workspace region without host patches, below global panels. The interface and anonymized session titles are English; browser menus, tabs, and the address bar are excluded.
 
 ## Install locally
 
@@ -48,7 +48,7 @@ You can also install through **Plugins → Add plugin → Install a third-party 
 
 The plugin's own labels are English. To make the rest of DSH English too, use **More → Settings → General → Language → English**. Session titles remain in the language you wrote them.
 
-Refresh your existing DSH GUI, then choose **Workspaces / Activity / Favorites** in the sidebar. On an unmodified DSH installation, the switcher appears at the bottom; the [optional sidebar patch](#optional-place-the-switcher-above-the-list) moves it above the list. Refresh after client changes too; hot reload is not assumed.
+Refresh your existing DSH GUI, then choose **Workspaces / Activity / Favorites** above the workspace region, below global panels. On the supported DSH 0.2.1-rc.2 layout, the plugin places the switcher there automatically without patching installed DSH files. The native workspace browser remains available in Workspaces. Refresh after client changes too; hot reload is not assumed.
 
 If you installed an earlier local version of this plugin, disable and remove it in DSH's plugin manager first to avoid two instances controlling the sidebar. You can keep its browser storage.
 
@@ -67,7 +67,7 @@ Copy the generated archive to the target machine, then install using its absolut
 dsh plugin --profile web add /absolute/path/yiliang114-dsh-session-deck-0.1.0.tgz --ignore-scripts
 ```
 
-Refresh the GUI. A tarball installation does not depend on the original checkout and does not apply the optional host patch automatically.
+Refresh the GUI. A tarball installation does not depend on the original checkout. Both linked and tarball installations place the switcher above the workspace region automatically on the supported rc.2 layout; neither needs a host patch.
 
 ### Future npm and market availability
 
@@ -98,36 +98,29 @@ Maintainers: see the [release guide](https://github.com/yiliang114/dsh-session-d
 
 ## DSH compatibility and switcher position
 
-Version compatibility and switcher placement are separate checks. This plugin declares an exact `engines.dsh` match of **0.2.1-rc.2**; a bottom-position switcher on that version does not indicate an outdated plugin or a version mismatch.
+This plugin declares an exact `engines.dsh` match of **0.2.1-rc.2**. Automatic top placement uses a DOM compatibility adapter for that release, not an official DSH extension API.
 
-| DSH sidebar | `sidebar.workspaces.before` | Session Deck support |
+| DSH sidebar | Placement mechanism | Session Deck support |
 | --- | --- | --- |
-| Official **0.2.1-rc.2** | Absent; the switcher falls back to the footer. | Verified in the real GUI. |
-| **0.2.1-rc.2** with the local patch below | Added after global panels, including Automation tasks. | Accepted by the version-checked patch script. |
-| Official **0.2.1-rc.3** | Still absent in its published client and slot contract. | Full plugin compatibility is unverified; excluded by the current engine declaration. |
+| Official **0.2.1-rc.2**, without patches | No official `sidebar.workspaces.before` slot; the adapter places the switcher above the workspace region by default. | Supported target, with a precise rc.2 DOM structure guard. |
+| **0.2.1-rc.2** with the legacy local patch | Reuses the existing `sidebar.workspaces.before` slot below global panels. | Compatible; the patch is no longer needed. |
+| Official **0.2.1-rc.3** | The published client and slot contract still lack the before-slot. | Not supported: full compatibility is unverified and the exact engine declaration excludes it. |
 
-The rc.3 published files were inspected on **2026-10-23**. Upgrading to rc.3 alone does not provide the missing slot. The patch is a local modification to DSH, not an official update or a step automatically performed by plugin installation. Supporting another host version requires validating its session, workspace, slot, and UI APIs before widening `engines.dsh` or the patch script's version guard.
+On the recognized rc.2 layout, the adapter renders a React portal into its own DOM host immediately before the workspace region, below global panels such as Automation tasks. It does not write installed DSH files or replace the native workspace browser. An unknown DOM layout falls back to the footer. Disabling the plugin removes its scoped observer and DOM host.
 
-## Optional: place the switcher above the list
+The rc.3 published files were inspected on **2026-10-23**; that inspection does not establish plugin compatibility. Supporting another host version requires validating its session, workspace, slot, and UI APIs and DOM layout before widening `engines.dsh`.
 
-DSH 0.2.1-rc.2 does not expose an official slot at this position. The [sidebar patch script](scripts/patch-sidebar-before.mjs) adds a local `sidebar.workspaces.before` slot after the global panel entries and before the workspace area. **The plugin works without this patch**, using the bottom position as its fallback.
+## Legacy sidebar patch rollback
+
+The [sidebar patch script](scripts/patch-sidebar-before.mjs) is retained for rollback and backward compatibility. New installations do not need it. If you previously installed its local before-slot patch, the plugin can reuse that slot, or you can restore the original sidebar.
 
 Locate the `@deepseek-ai/dsh-client-ui-sidebar` package actually used by your running DSH. From this repository, replace the placeholder with that package's directory, not the DSH root or this plugin directory:
-
-```sh
-node scripts/patch-sidebar-before.mjs /path/to/dsh-client-ui-sidebar
-node --check /path/to/dsh-client-ui-sidebar/lib/client.js
-```
-
-The script accepts only **0.2.1-rc.2**, checks both target files before writing, and saves adjacent `.dsa-before.backup` files. It is safe to rerun and rejects unexpected code. Refresh the GUI after applying it.
-
-To restore the original sidebar:
 
 ```sh
 node scripts/patch-sidebar-before.mjs /path/to/dsh-client-ui-sidebar --rollback
 ```
 
-Rollback needs the original backups and refuses to overwrite unrelated changes. Refresh again to return to the bottom position. DSH reinstalls or upgrades may replace the patch; check compatibility before reapplying it. If you modify a DSH source checkout, rebuild the affected client artifacts as well.
+Rollback requires the original adjacent `.dsa-before.backup` files and refuses to overwrite unrelated changes. Refresh the GUI after rollback: the new plugin still places the switcher above the workspace region on the supported unpatched rc.2 layout. If rolling back a DSH source checkout, rebuild the affected client artifacts as well.
 
 ## Privacy and local storage
 
@@ -142,7 +135,7 @@ Browser `localStorage` retains the original keys for compatibility:
 
 No conversation bodies are stored by the plugin. Favorites remain in DSH's native pinned data. View and unread state sync between tabs on the same origin, not across devices. If storage is unavailable, state stays in memory. Clearing browser storage resets this metadata; processed records are capped at 1,000, while running and unread records are retained.
 
-Disable or remove **`@yiliang114/dsh-session-deck`** in DSH's plugin manager to stop using it. Removal does not clear browser storage or undo the optional host patch; use the rollback command separately.
+Disable or remove **`@yiliang114/dsh-session-deck`** in DSH's plugin manager to stop using it. Disabling removes the adapter's observer and DOM host and restores the native workspace browser. Removal does not clear browser storage or undo a legacy host patch; use the rollback command separately if needed.
 
 ## Development
 
