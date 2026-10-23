@@ -2,7 +2,9 @@
 
 在 DeepSeek Harness（DSH）原生侧栏中，集中查看跨工作区的会话、运行状态、未读结果与收藏。
 
-项目目前处于私有开发阶段，尚未发布到 npm。仓库名为 `dsh-session-deck`；为兼容已有安装和浏览器数据，内部包名、插件 ID 和存储键暂时保留 `dsh-session-activity`。
+项目尚未发布到 npm，当前保留 `private: true` 发布保护。仓库名为 `dsh-session-deck`；为兼容已有安装和浏览器数据，内部包名、插件 ID 和存储键暂时保留 `dsh-session-activity`。
+
+这是使用 DSH 原生插件机制的第三方插件，不是 DSH 官方内置组件。**安装使用不要求发布 npm**：本地开发可使用 `link:`，分发可使用 npm tarball；发布 npm 后才可通过注册表包名安装。
 
 ## 功能
 
@@ -43,6 +45,41 @@ dsh plugin --profile web add "link:$PWD" --offline --ignore-scripts
 上面的命令面向 `web` profile；使用其他 profile 时替换名称。通过本地链接安装后，需要保留仓库目录。完成安装或修改客户端后，刷新现有 DSH GUI；不要假定开发热更新已启用。
 
 首次使用时，从侧栏的 **工作区 / 活动 / 收藏** 切换视图。原版 DSH 中切换条位于侧栏底部；需要放到全局入口下方、会话列表上方时，可应用下面的可选补丁。
+
+## 分发与 npm 发布
+
+### 不经过 npm 注册表分发
+
+在仓库根目录验证并打包：
+
+```sh
+npm run verify
+npm pack --ignore-scripts
+```
+
+当前版本生成 `dsh-session-activity-0.1.0.tgz`。把文件复制到目标机器后，使用其绝对路径安装：
+
+```sh
+dsh plugin --profile web add /absolute/path/dsh-session-activity-0.1.0.tgz --ignore-scripts
+```
+
+tarball 包含宿主入口、已就绪的客户端、Cordis 配置、README 和可选补丁脚本，不需要构建依赖，也不会自动执行宿主补丁。安装后刷新 GUI。与 `link:` 不同，tarball 安装不依赖原仓库目录持续存在。
+
+### 准备公开发布
+
+1. 确认仓库可以公开，选择许可证、添加 `LICENSE` 并同步 `package.json` 的 `license` 字段。公开源码和授予开源使用权限是两件事。
+2. 确认 npm 包名的可用性和发布权限。当前包名为 `dsh-session-activity`，尚未确认可用；若更名，需同步 Cordis 配置和客户端中的包标识，不能只改仓库名。
+3. 移除 `package.json` 的 `private: true`，更新版本号；保留实际验证过的 `engines.dsh` 兼容范围。
+4. 运行 `npm run verify`、`npm pack --dry-run`，并用 tarball 在目标 DSH 版本上验证工作区/活动/收藏切换、未读状态和会话菜单。
+5. 通过有权限的 npm 账号执行 `npm publish --access public`，再验证安装。本文中的发布命令是维护者操作说明，当前 CI 不执行发布。
+
+首次发布成功后，用户才可以使用下面的命令（当前不能假定注册表已有此包）：
+
+```sh
+dsh plugin --profile web add dsh-session-activity@0.1.0 --ignore-scripts
+```
+
+如果后续采用自动发布，建议单独添加发布工作流，由版本 tag 或 GitHub Release 触发，验证 tag 与包版本一致后再发布。优先配置 npm Trusted Publishing（OIDC），将授权限定到本仓库的发布工作流；发布 job 才需要 `id-token: write`，并应使用 npm 当时要求的 Node.js/npm 版本。首次创建包及 Trusted Publisher 绑定按 npm 的当前流程完成。普通 PR CI 不应拥有 npm 凭据或发布权限。
 
 ## 可选：将切换条放到列表上方
 
@@ -123,12 +160,24 @@ DSH 重装或升级可能覆盖补丁。升级后先检查兼容性；不要绕�
 ## 开发与验证
 
 ```sh
-npm run build
-npm test
-node --check scripts/patch-sidebar-before.mjs
+npm run verify
 ```
 
-`build` 检查宿主入口和客户端 JavaScript 语法，不生成新的客户端文件。`test` 使用 Node.js 内置测试运行器和真实客户端逻辑，覆盖筛选、收藏、未读持久化、跨标签页合并与子代理聚合。当前有 15 项逻辑测试，它们不替代真实 GUI 的交互验证。项目尚未配置独立 lint、typecheck 或 CI 工作流。
+统一验证命令依次执行：
+
+- `npm run build`：检查宿主入口、客户端和维护脚本的 JavaScript 语法，不生成新的客户端文件。
+- `npm test`：使用 Node.js 内置测试运行器和真实客户端逻辑，覆盖筛选、收藏、未读持久化、跨标签页合并与子代理聚合。
+- `npm run check:package`：使用 `npm pack --dry-run --json --ignore-scripts` 检查分发文件清单，确保导出入口与 Cordis 配置均在包内，阻止测试、CI 配置和其他非分发文件混入。此步骤不生成 tarball，也不发布 npm。
+
+项目没有 npm 依赖，无需先执行 `npm install`，也没有依赖锁文件。引入依赖时，应提交锁文件，并在 CI 中加入 `npm ci`。目前未配置独立 lint 或 TypeScript typecheck；语法检查和逻辑测试不能替代真实 GUI 交互验证。
+
+### GitHub Actions
+
+[CI 工作流](.github/workflows/ci.yml) 在指向仓库的 PR、推送到 `main` 及手动触发时执行，在 Ubuntu 上分别使用 Node.js 22 和 24 运行 `npm run verify`。它仅授予 `contents: read` 权限，不需要 Secrets，也不安装或修改运行中的 DSH。相同 PR 或分支的新运行会取消旧运行。
+
+维护者需要在仓库 **Settings → Actions → General** 中允许 GitHub Actions 以及 `actions/checkout`、`actions/setup-node`。工作流首次运行后，可在 `main` 的分支保护或 Ruleset 中将 `Verify (Node 22)` 和 `Verify (Node 24)` 设为必需检查。私有仓库的 Actions 配额和分支保护可用性取决于 GitHub 账户方案。
+
+CI 校验的是插件源码与打包清单，不代表已经在多个 DSH 版本完成兼容测试；目前宿主适配范围仍为 `0.2.1-rc.2`。
 
 | 文件 | 作用 |
 | --- | --- |
