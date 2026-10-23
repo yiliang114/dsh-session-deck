@@ -7,9 +7,9 @@
     "access": "public",
     "registry": "https://registry.npmjs.org/"
   },
-  "keywords": ["dsh-plugin", "deepseek-harness", "sidebar", "sessions"],
+  "keywords": ["dsh-plugin", "deepseek-harness", "sidebar", "sessions", "session-management", "favorites", "ai-agents"],
   "type": "module",
-  "description": "Compact session activity in the native DSH sidebar",
+  "description": "Activity and Favorites views for DeepSeek Harness: track running, waiting, and unread sessions across workspaces.",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/yiliang114/dsh-session-deck.git"
