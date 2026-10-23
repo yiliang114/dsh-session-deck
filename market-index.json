@@ -33,6 +33,17 @@
             "type": "npm",
             "registry": "https://registry.npmjs.org"
           }
+        },
+        {
+          "version": "0.1.4",
+          "publishTimestamp": 1792772038,
+          "engines": {
+            "dsh": "0.2.1-rc.2"
+          },
+          "source": {
+            "type": "npm",
+            "registry": "https://registry.npmjs.org"
+          }
         }
       ]
     }
