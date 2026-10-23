@@ -184,7 +184,7 @@ test('footer detachment removes the owned host; restoration and remount remain c
   assert.ok([...f.observers].every(observer => !observer.connected))
 })
 
-test('slot preference remains live and compact buttons retain accessible full labels and observation', () => {
+test('slot preference remains live and compact buttons retain accessible full labels', () => {
   const elements = (type, props, ...children) => ({ type, props, children })
   const effects = [], registrations = [], subscriptions = new Map(), disposals = []
   const plugin = load({ createElement: elements, useEffect: effect => effects.push(effect), useSyncExternalStore: (subscribe, snapshot) => snapshot() }, {
@@ -197,28 +197,34 @@ test('slot preference remains live and compact buttons retain accessible full la
     subscribe: (name, callback) => { subscriptions.set(name, callback); return () => subscriptions.delete(name) },
     register: (spec, component) => { const registration = { spec, component, active: true }; registrations.push(registration); return () => { registration.active = false } },
   } })
-  assert.equal(registrations[0].spec.name, 'sidebar.footer.action')
-  assert.equal(registrations[0].component.name, 'FooterNavigation')
+  const navigationRegistrations = () => registrations.filter(({ spec }) => spec.id === '@yiliang114/dsh-session-deck.switch')
+  assert.equal(navigationRegistrations()[0].spec.name, 'sidebar.footer.action')
+  assert.equal(navigationRegistrations()[0].component.name, 'FooterNavigation')
   before = true
   subscriptions.get('sidebar.workspaces.before')()
-  assert.equal(registrations[0].active, false)
-  const navigation = registrations[1]
+  assert.equal(navigationRegistrations()[0].active, false)
+  const navigation = navigationRegistrations()[1]
   assert.equal(navigation.spec.name, 'sidebar.workspaces.before')
   const props = { wide: false, useSessions: () => ({ phase: 'ready', ids: [], byId: {} }), useSessionStatus: () => new Map() }
   const switchElement = navigation.component(props).children[0]
-  assert.equal(switchElement.props, props)
+  assert.deepEqual({ ...switchElement.props }, { ...props, unread: 0 })
   const compact = switchElement.type(props)
   assert.deepEqual(compact.children.map(button => button.children[0]), ['W', 'A', '★'])
   assert.deepEqual(compact.children.map(button => button.props['aria-label']), ['Workspaces', 'Activity', 'Favorites'])
   assert.deepEqual(compact.children.map(button => button.props.title), ['Workspaces', 'Activity', 'Favorites'])
-  assert.equal(effects.length, 1)
-  effects[0]() // Existing pending observation remains callable through the switch.
+  assert.equal(compact.children.some(button => button.children.some(child => child?.props?.className === 'dsa-tab-unread')), false)
+  const withUnread = switchElement.type({ wide: false, unread: 2 })
+  const activity = withUnread.children[1]
+  assert.equal(activity.props.title, 'Activity · 2 unread completed sessions')
+  assert.equal(activity.children[1].props.className, 'dsa-tab-unread')
+  assert.equal(activity.children[1].props['data-count'], '2')
+  assert.equal(effects.length, 0, 'the persistent overlay owns completion observation')
   const expanded = switchElement.type({ ...props, wide: true })
   assert.deepEqual(expanded.children.map(button => button.children[0]), ['Workspaces', 'Activity', 'Favorites'])
   before = false
   subscriptions.get('sidebar.workspaces.before')()
   assert.equal(navigation.active, false)
-  assert.equal(registrations[2].component.name, 'FooterNavigation')
+  assert.equal(navigationRegistrations()[2].component.name, 'FooterNavigation')
   for (const dispose of disposals) dispose()
   assert.ok(registrations.every(registration => !registration.active))
 })
