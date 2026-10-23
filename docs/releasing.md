@@ -2,9 +2,9 @@
 
 [User guide](../README.md) · [中文使用指南](../README.zh-CN.md)
 
-This guide is for maintainers of **`@yiliang114/dsh-session-deck`**. The current source version is **0.1.0** and the supported DSH version is exactly **0.2.1-rc.2**. The npm package has not been published: the initial npm login attempt did not complete successfully. Local checkout and tarball installation remain available.
+This guide is for maintainers of **`@yiliang114/dsh-session-deck`**. The current release candidate is **0.1.1** and the supported DSH version is exactly **0.2.1-rc.2**. The npm package has not been published. Local checkout and tarball installation remain available.
 
-The [publish workflow](../.github/workflows/publish.yml) is present, but **npm trusted publishing must still be configured**. Committing a workflow does not create an npm package or authorize GitHub Actions to publish it.
+The [publish workflow](../.github/workflows/publish.yml) supports an initial tagged publication using a repository `NPM_TOKEN` secret, then tokenless npm trusted publishing after the package exists. Authentication must be configured before publishing; committing the workflow does not authorize it.
 
 ## Verify a release candidate
 
@@ -32,17 +32,17 @@ Recapture the README screenshots from the actual English interface on unpatched 
 
 ## Bootstrap the npm package
 
-The first publication requires an npm account authorized to publish under the `@yiliang114` scope. Complete npm login and any required verification using npm's official flow before proceeding:
+The first publication requires an npm account authorized to create packages under `@yiliang114`. In npm's website, create a short-lived [granular access token](https://docs.npmjs.com/creating-and-viewing-access-tokens/) with **Read and write** package permissions covering the `@yiliang114` scope (including the new package) and **Bypass two-factor authentication** enabled for unattended CI publication. Store it as the GitHub repository Actions secret **`NPM_TOKEN`**. Browser login alone does not authenticate GitHub Actions or the local npm CLI.
+
+Verify the reviewed candidate, merge it to `main`, then create and push **`v0.1.1`**. The workflow requires the tag to exactly match the package version, runs `npm run verify`, publishes, and queries the registry. Inspect the successful run and confirm:
 
 ```sh
-npm login --registry=https://registry.npmjs.org
-npm whoami --registry=https://registry.npmjs.org
-npm run verify
-npm publish --access public --ignore-scripts
-npm view @yiliang114/dsh-session-deck@0.1.0 name version dist.integrity --registry=https://registry.npmjs.org
+npm view @yiliang114/dsh-session-deck@0.1.1 name version dist.integrity --registry=https://registry.npmjs.org
 ```
 
-Treat publication as complete only after registry verification succeeds. Do not advertise registry installation or add a market release entry while login or publication remains incomplete. npm versions cannot be overwritten; a version already published locally must not be published again by the workflow.
+The publication uses `--provenance`, job permission `id-token: write`, and a public package. [npm provenance](https://docs.npmjs.com/generating-provenance-statements/) also requires a public GitHub repository matching the package's `repository.url`; keep it set to `git+https://github.com/yiliang114/dsh-session-deck.git`.
+
+Treat publication as complete only after registry verification succeeds. Do not advertise registry installation or add a market release entry before then. npm versions cannot be overwritten; check the registry before retrying a failed post-publication step.
 
 ## Configure GitHub Actions trusted publishing
 
@@ -57,7 +57,7 @@ After the package exists, open its npm **Settings → Trusted Publisher** config
 
 Use the workflow filename, not its repository path. The binding must authorize direct `npm publish`. Follow the current [npm trusted publishing documentation](https://docs.npmjs.com/trusted-publishers/) for any additional verification and eligibility requirements. This is npm-side setup, not a setting inferred from the repository files.
 
-The workflow uses Node.js **24**, checks for npm **11.5.1 or newer**, and grants the publishing job `id-token: write` for OIDC. It does not store an npm token. It runs verification before publishing and queries the registry afterward.
+The workflow uses Node.js **24**, checks for npm **11.5.1 or newer**, and grants the publishing job `id-token: write` for OIDC. Only the `npm publish` step receives `NODE_AUTH_TOKEN` from the optional `NPM_TOKEN` secret. After configuring the trusted publisher, remove that repository secret and revoke the bootstrap token: an absent secret supplies an empty value, allowing npm to use OIDC for subsequent publications. Verification runs before publishing, followed by a registry query.
 
 Ensure GitHub Actions and `actions/checkout` / `actions/setup-node` are allowed in repository settings. The [CI workflow](../.github/workflows/ci.yml) verifies Node.js 22 and 24; its `Verify (Node 22)` and `Verify (Node 24)` checks can be required by branch protection after their first run.
 
@@ -65,11 +65,11 @@ Ensure GitHub Actions and `actions/checkout` / `actions/setup-node` are allowed 
 
 1. Update the package version, release-facing documentation, and compatibility declaration as appropriate. Validate changes and merge the reviewed release commit to `main`.
 2. Confirm the npm trusted publisher binding is in place and test the target DSH GUI.
-3. Create and push a tag that exactly matches the package version. For example, **only after changing the package version to 0.1.1**:
+3. Create and push a tag that exactly matches the new package version. For example, **after publishing 0.1.1 and changing the next package version to 0.1.2**:
 
    ```sh
-   git tag v0.1.1
-   git push origin v0.1.1
+   git tag v0.1.2
+   git push origin v0.1.2
    ```
 
 4. Inspect the publish workflow and confirm the registry version and integrity. A `v*` tag triggers publishing, and a mismatched tag fails. Manual workflow retries must select the version tag; selecting a branch skips the publishing job. Check whether publication already succeeded before retrying a failed post-publication step.

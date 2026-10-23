@@ -44,8 +44,10 @@ jobs:
           assert.ok(major > 11 || (major === 11 && (minor > 5 || (minor === 5 && patch >= 1))), 'Trusted publishing requires npm >=11.5.1')
           NODE
       - run: npm run verify
-      - name: Publish with npm trusted publishing
-        run: npm publish --access public --ignore-scripts
+      - name: Publish to npm
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access public --provenance --ignore-scripts
       - name: Verify published version
         run: |
           PACKAGE=$(node -p "const p = require('./package.json'); p.name + '@' + p.version")

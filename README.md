@@ -27,7 +27,7 @@ Screenshots show the switcher above the workspace region without host patches, b
 
 ## Install locally
 
-**The npm package has not been published. Use a local checkout or tarball today.** The package name is **`@yiliang114/dsh-session-deck`**.
+The package name is **`@yiliang114/dsh-session-deck`**. A local checkout or tarball can be installed without npm publication; for registry installation, check version availability as described below.
 
 Requirements:
 
@@ -64,20 +64,21 @@ npm pack --ignore-scripts
 Copy the generated archive to the target machine, then install using its absolute path:
 
 ```sh
-dsh plugin --profile web add /absolute/path/yiliang114-dsh-session-deck-0.1.0.tgz --ignore-scripts
+dsh plugin --profile web add /absolute/path/yiliang114-dsh-session-deck-0.1.1.tgz --ignore-scripts
 ```
 
 Refresh the GUI. A tarball installation does not depend on the original checkout. Both linked and tarball installations place the switcher above the workspace region automatically on the supported rc.2 layout; neither needs a host patch.
 
-### Future npm and market availability
+### npm installation and market discovery
 
-**Only after version 0.1.0 is published and verified**, this command will become usable:
+**Confirm that version 0.1.1 exists in the official registry before installing:**
 
 ```sh
-dsh plugin --profile web add @yiliang114/dsh-session-deck@0.1.0 --ignore-scripts
+npm view @yiliang114/dsh-session-deck@0.1.1 version --registry=https://registry.npmjs.org
+dsh plugin --profile web add @yiliang114/dsh-session-deck@0.1.1 --ignore-scripts
 ```
 
-The [market index](market-index.json) currently contains `plugins: []`: there are **no released entries**, so adding the index will not display this plugin. DSH's custom plugin market uses user-added index sources; npm publication does not automatically collect or list a plugin in an official DSH market.
+The [market index](market-index.json) lists only verified npm releases. An empty `plugins: []` means there are **no released entries** to display. DSH's custom plugin market uses user-added index sources; npm publication does not automatically collect or list a plugin in an official DSH market.
 
 After a confirmed release is added to the index, its direct URL can be added through DSH's custom plugin market:
 

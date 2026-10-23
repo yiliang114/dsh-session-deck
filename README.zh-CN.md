@@ -27,7 +27,7 @@
 
 ## 本地安装
 
-**npm 包尚未发布。目前请使用本地仓库或 tarball 安装。** 包名为 **`@yiliang114/dsh-session-deck`**。
+包名为 **`@yiliang114/dsh-session-deck`**。本地仓库和 tarball 安装不依赖 npm 发布；使用注册表安装时，请先按下文确认版本是否可用。
 
 环境要求：
 
@@ -64,20 +64,21 @@ npm pack --ignore-scripts
 将生成的归档文件复制到目标机器，再用绝对路径安装：
 
 ```sh
-dsh plugin --profile web add /absolute/path/yiliang114-dsh-session-deck-0.1.0.tgz --ignore-scripts
+dsh plugin --profile web add /absolute/path/yiliang114-dsh-session-deck-0.1.1.tgz --ignore-scripts
 ```
 
 安装后刷新 GUI。tarball 安装不依赖原仓库目录持续存在。链接和 tarball 两种安装方式都会在支持的 rc.2 布局中自动将切换条放到工作区区域上方，无需宿主补丁。
 
-### 后续 npm 安装与市场发现
+### npm 安装与市场发现
 
-**只有在 0.1.0 发布并确认可用之后**，才能使用以下命令：
+**安装前，先确认官方注册表中存在 0.1.1 版本：**
 
 ```sh
-dsh plugin --profile web add @yiliang114/dsh-session-deck@0.1.0 --ignore-scripts
+npm view @yiliang114/dsh-session-deck@0.1.1 version --registry=https://registry.npmjs.org
+dsh plugin --profile web add @yiliang114/dsh-session-deck@0.1.1 --ignore-scripts
 ```
 
-当前[市场索引](market-index.json)为 `plugins: []`，表示**没有已发布条目**，添加索引也不会显示本插件。DSH 自定义插件市场读取用户添加的索引源；发布 npm 不会触发官方 DSH 市场的自动收录。
+[市场索引](market-index.json)只列出经 npm 验证的发布版本。若内容为 `plugins: []`，表示**没有可显示的已发布条目**。DSH 自定义插件市场读取用户添加的索引源；发布 npm 不会触发官方 DSH 市场的自动收录。
 
 确认发布且更新索引后，可以在 DSH 自定义插件市场中添加以下直接 JSON 地址：
 
