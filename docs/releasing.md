@@ -2,7 +2,7 @@
 
 [User guide](../README.md) · [中文使用指南](../README.zh-CN.md)
 
-This guide is for maintainers of **`@yiliang114/dsh-session-deck`**. The current release candidate is **0.1.1** and the supported DSH version is exactly **0.2.1-rc.2**. The npm package has not been published. Local checkout and tarball installation remain available.
+This guide is for maintainers of **`@yiliang114/dsh-session-deck`**. The current source version is **0.1.2** and the supported DSH version is exactly **0.2.1-rc.2**. A release is complete only when its tagged workflow succeeds and the exact npm version can be downloaded and installed.
 
 The [publish workflow](../.github/workflows/publish.yml) supports an initial tagged publication using a repository `NPM_TOKEN` secret, then tokenless npm trusted publishing after the package exists. Authentication must be configured before publishing; committing the workflow does not authorize it.
 
@@ -34,15 +34,15 @@ Recapture the README screenshots from the actual English interface on unpatched 
 
 The first publication requires an npm account authorized to create packages under `@yiliang114`. In npm's website, create a short-lived [granular access token](https://docs.npmjs.com/creating-and-viewing-access-tokens/) with **Read and write** package permissions covering the `@yiliang114` scope (including the new package) and **Bypass two-factor authentication** enabled for unattended CI publication. Store it as the GitHub repository Actions secret **`NPM_TOKEN`**. Browser login alone does not authenticate GitHub Actions or the local npm CLI.
 
-Verify the reviewed candidate, merge it to `main`, then create and push **`v0.1.1`**. The workflow requires the tag to exactly match the package version, runs `npm run verify`, publishes, and queries the registry. Inspect the successful run and confirm:
+Verify the reviewed candidate, merge it to `main`, then create and push **`v0.1.2`**. The workflow requires the tag to exactly match the package version, runs `npm run verify`, publishes, and queries the registry. Inspect the successful run and confirm:
 
 ```sh
-npm view @yiliang114/dsh-session-deck@0.1.1 name version dist.integrity --registry=https://registry.npmjs.org
+npm view @yiliang114/dsh-session-deck@0.1.2 name version dist.integrity --registry=https://registry.npmjs.org
 ```
 
 The publication uses `--provenance`, job permission `id-token: write`, and a public package. [npm provenance](https://docs.npmjs.com/generating-provenance-statements/) also requires a public GitHub repository matching the package's `repository.url`; keep it set to `git+https://github.com/yiliang114/dsh-session-deck.git`.
 
-Treat publication as complete only after registry verification succeeds. Do not advertise registry installation or add a market release entry before then. npm versions cannot be overwritten; check the registry before retrying a failed post-publication step.
+Treat publication as complete only after registry verification succeeds. npm can accept an upload while processing the release, and its website may temporarily show a holding version. The [registry verifier](../scripts/verify-published.mjs) checks the exact public version without authentication and retries HTTP 404, 429, and 5xx responses up to 20 times, 15 seconds apart. Authentication errors and mismatched metadata fail immediately. If processing lasts beyond that window, inspect npm's package and staged-release status before retrying; do not publish the same version again just because verification failed. Do not add a market release entry before the actual version is verified. npm versions cannot be overwritten.
 
 ## Configure GitHub Actions trusted publishing
 
@@ -65,11 +65,11 @@ Ensure GitHub Actions and `actions/checkout` / `actions/setup-node` are allowed 
 
 1. Update the package version, release-facing documentation, and compatibility declaration as appropriate. Validate changes and merge the reviewed release commit to `main`.
 2. Confirm the npm trusted publisher binding is in place and test the target DSH GUI.
-3. Create and push a tag that exactly matches the new package version. For example, **after publishing 0.1.1 and changing the next package version to 0.1.2**:
+3. Create and push a tag that exactly matches the new package version. For example, **after publishing 0.1.2 and changing the next package version to 0.1.3**:
 
    ```sh
-   git tag v0.1.2
-   git push origin v0.1.2
+   git tag v0.1.3
+   git push origin v0.1.3
    ```
 
 4. Inspect the publish workflow and confirm the registry version and integrity. A `v*` tag triggers publishing, and a mismatched tag fails. Manual workflow retries must select the version tag; selecting a branch skips the publishing job. Check whether publication already succeeded before retrying a failed post-publication step.

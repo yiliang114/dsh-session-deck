@@ -49,6 +49,4 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: npm publish --access public --provenance --ignore-scripts
       - name: Verify published version
-        run: |
-          PACKAGE=$(node -p "const p = require('./package.json'); p.name + '@' + p.version")
-          npm view "$PACKAGE" name version dist.integrity --registry=https://registry.npmjs.org
+        run: node scripts/verify-published.mjs

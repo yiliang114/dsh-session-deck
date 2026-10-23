@@ -1,6 +1,6 @@
 {
   "name": "@yiliang114/dsh-session-deck",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "license": "MIT",
   "author": "yiliang114",
   "publishConfig": {
@@ -30,7 +30,7 @@
   },
   "files": ["src", "lib", "scripts/patch-sidebar-before.mjs", "cordis.patch.yml", "README.md"],
   "scripts": {
-    "build": "node --check src/host.mjs && node --check lib/client.js && node --check scripts/patch-sidebar-before.mjs && node --check scripts/check-package.mjs && node --check scripts/update-market-index.mjs",
+    "build": "node --check src/host.mjs && node --check lib/client.js && node --check scripts/patch-sidebar-before.mjs && node --check scripts/check-package.mjs && node --check scripts/update-market-index.mjs && node --check scripts/verify-published.mjs",
     "market:update": "node scripts/update-market-index.mjs",
     "test": "node --test test/*.test.mjs",
     "check:package": "node scripts/check-package.mjs",

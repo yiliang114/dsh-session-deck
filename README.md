@@ -21,7 +21,7 @@ Switching views keeps your current conversation open. Session rows show the titl
 | Activity | Favorites | Workspaces |
 | --- | --- | --- |
 | Follow active work and unread results. | Return to native pinned sessions. | Keep the complete workspace controls. |
-| ![English Activity view](docs/images/activity.png) | ![English Favorites view](docs/images/favorites.png) | ![English native Workspaces view](docs/images/workspaces.png) |
+| ![English Activity view](https://raw.githubusercontent.com/yiliang114/dsh-session-deck/main/docs/images/activity.png) | ![English Favorites view](https://raw.githubusercontent.com/yiliang114/dsh-session-deck/main/docs/images/favorites.png) | ![English native Workspaces view](https://raw.githubusercontent.com/yiliang114/dsh-session-deck/main/docs/images/workspaces.png) |
 
 Screenshots show the switcher above the workspace region without host patches, below global panels. The interface and anonymized session titles are English; browser menus, tabs, and the address bar are excluded.
 
@@ -64,18 +64,18 @@ npm pack --ignore-scripts
 Copy the generated archive to the target machine, then install using its absolute path:
 
 ```sh
-dsh plugin --profile web add /absolute/path/yiliang114-dsh-session-deck-0.1.1.tgz --ignore-scripts
+dsh plugin --profile web add /absolute/path/yiliang114-dsh-session-deck-0.1.2.tgz --ignore-scripts
 ```
 
 Refresh the GUI. A tarball installation does not depend on the original checkout. Both linked and tarball installations place the switcher above the workspace region automatically on the supported rc.2 layout; neither needs a host patch.
 
 ### npm installation and market discovery
 
-**Confirm that version 0.1.1 exists in the official registry before installing:**
+**Confirm that version 0.1.2 exists in the official registry before installing:**
 
 ```sh
-npm view @yiliang114/dsh-session-deck@0.1.1 version --registry=https://registry.npmjs.org
-dsh plugin --profile web add @yiliang114/dsh-session-deck@0.1.1 --ignore-scripts
+npm view @yiliang114/dsh-session-deck@0.1.2 version --registry=https://registry.npmjs.org
+dsh plugin --profile web add @yiliang114/dsh-session-deck@0.1.2 --ignore-scripts
 ```
 
 The [market index](market-index.json) lists only verified npm releases. An empty `plugins: []` means there are **no released entries** to display. DSH's custom plugin market uses user-added index sources; npm publication does not automatically collect or list a plugin in an official DSH market.

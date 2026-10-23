@@ -21,7 +21,7 @@
 | Activity | Favorites | Workspaces |
 | --- | --- | --- |
 | 掌握运行状态和未读结果。 | 回到原生置顶的重要会话。 | 保留完整的工作区操作。 |
-| ![英文 Activity 视图](docs/images/activity.png) | ![英文 Favorites 视图](docs/images/favorites.png) | ![英文原生 Workspaces 视图](docs/images/workspaces.png) |
+| ![英文 Activity 视图](https://raw.githubusercontent.com/yiliang114/dsh-session-deck/main/docs/images/activity.png) | ![英文 Favorites 视图](https://raw.githubusercontent.com/yiliang114/dsh-session-deck/main/docs/images/favorites.png) | ![英文原生 Workspaces 视图](https://raw.githubusercontent.com/yiliang114/dsh-session-deck/main/docs/images/workspaces.png) |
 
 截图展示无需宿主补丁、自动位于全局面板下方和工作区区域上方的切换条。界面及匿名化后的会话标题使用英文；不包含浏览器顶部菜单、标签栏和地址栏。
 
@@ -64,18 +64,18 @@ npm pack --ignore-scripts
 将生成的归档文件复制到目标机器，再用绝对路径安装：
 
 ```sh
-dsh plugin --profile web add /absolute/path/yiliang114-dsh-session-deck-0.1.1.tgz --ignore-scripts
+dsh plugin --profile web add /absolute/path/yiliang114-dsh-session-deck-0.1.2.tgz --ignore-scripts
 ```
 
 安装后刷新 GUI。tarball 安装不依赖原仓库目录持续存在。链接和 tarball 两种安装方式都会在支持的 rc.2 布局中自动将切换条放到工作区区域上方，无需宿主补丁。
 
 ### npm 安装与市场发现
 
-**安装前，先确认官方注册表中存在 0.1.1 版本：**
+**安装前，先确认官方注册表中存在 0.1.2 版本：**
 
 ```sh
-npm view @yiliang114/dsh-session-deck@0.1.1 version --registry=https://registry.npmjs.org
-dsh plugin --profile web add @yiliang114/dsh-session-deck@0.1.1 --ignore-scripts
+npm view @yiliang114/dsh-session-deck@0.1.2 version --registry=https://registry.npmjs.org
+dsh plugin --profile web add @yiliang114/dsh-session-deck@0.1.2 --ignore-scripts
 ```
 
 [市场索引](market-index.json)只列出经 npm 验证的发布版本。若内容为 `plugins: []`，表示**没有可显示的已发布条目**。DSH 自定义插件市场读取用户添加的索引源；发布 npm 不会触发官方 DSH 市场的自动收录。
