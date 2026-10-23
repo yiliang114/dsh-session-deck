@@ -1,6 +1,6 @@
 # DSH Session Deck
 
-[English](https://github.com/yiliang114/dsh-session-deck/blob/main/README.md)
+[English](https://github.com/yiliang114/dsh-session-deck/blob/main/README.md) · [npm 0.1.2](https://www.npmjs.com/package/@yiliang114/dsh-session-deck/v/0.1.2) · [发布版本](https://github.com/yiliang114/dsh-session-deck/releases) · [发布 CI](https://github.com/yiliang114/dsh-session-deck/actions/runs/39979809316)
 
 **不用离开当前对话，就能掌握所有 DSH 工作区中的会话进展。** Session Deck 在 DeepSeek Harness 原生侧栏中加入 Activity 和 Favorites 视图，让你快速找到运行中的代理、等待回复的会话，以及尚未查看的完成结果。
 
@@ -25,15 +25,27 @@
 
 截图展示无需宿主补丁、自动位于全局面板下方和工作区区域上方的切换条。界面及匿名化后的会话标题使用英文；不包含浏览器顶部菜单、标签栏和地址栏。
 
-## 本地安装
+## 从 npm 安装
 
-包名为 **`@yiliang114/dsh-session-deck`**。本地仓库和 tarball 安装不依赖 npm 发布；使用注册表安装时，请先按下文确认版本是否可用。
+**0.1.2 已在 [npm](https://www.npmjs.com/package/@yiliang114/dsh-session-deck/v/0.1.2) 发布**，由[发布 CI](https://github.com/yiliang114/dsh-session-deck/actions/runs/39979809316) 完成。官方 npm tarball 已在隔离环境中安装，SHA512 完整性校验通过，宿主入口、客户端和补丁文件均已与源码核对。
 
 环境要求：
 
 - Node.js **22 或以上**。
 - DSH Web GUI **0.2.1-rc.2**，这是当前精确适配的宿主版本，其他版本未经验证。
 - 已启用 DSH 原生侧栏、会话和工作区插件。
+
+**从旧安装迁移：**在通过 npm 安装前，请先在 DSH 插件管理中停用并移除旧插件实例，避免两个实例同时接管侧栏；浏览器存储可以保留。
+
+```sh
+dsh plugin --profile web add @yiliang114/dsh-session-deck@0.1.2 --ignore-scripts
+```
+
+使用其他 profile 时替换 `web`。刷新现有 DSH GUI，然后在全局面板下方、工作区区域上方选择 **Workspaces / Activity / Favorites**。在支持的 DSH 0.2.1-rc.2 布局中，插件会自动将切换条放到该位置，无需修改已安装的 DSH 文件。Workspaces 保留原生工作区浏览器。修改客户端后也需要刷新，不应假定热更新已启用。
+
+插件自身文案使用英文。要让 DSH 其他界面也显示英文，在 **更多 → 设置 → 通用设置 → 语言** 中选择 **English**。会话标题仍保留用户原来使用的语言。
+
+### 备选：链接本地仓库
 
 ```sh
 git clone https://github.com/yiliang114/dsh-session-deck.git
@@ -42,17 +54,11 @@ npm run verify
 dsh plugin --profile web add "link:$PWD" --offline --ignore-scripts
 ```
 
-项目没有需要安装的依赖，仓库已包含客户端文件；`build` 仅检查 JavaScript 语法，不生成客户端。使用其他 profile 时替换 `web`。链接安装期间请保留仓库目录。
+项目没有需要安装的依赖，仓库已包含客户端文件；`build` 仅检查 JavaScript 语法，不生成客户端。链接安装期间请保留仓库目录。
 
 也可以通过 **Plugins → Add plugin → Install a third-party plugin** 安装：输入 `link:/absolute/path/to/dsh-session-deck`，点击 **Install**，然后 **Enable now**，最后刷新页面。
 
-插件自身文案使用英文。要让 DSH 其他界面也显示英文，在 **更多 → 设置 → 通用设置 → 语言** 中选择 **English**。会话标题仍保留用户原来使用的语言。
-
-刷新现有 DSH GUI，然后在全局面板下方、工作区区域上方选择 **Workspaces / Activity / Favorites**。在支持的 DSH 0.2.1-rc.2 布局中，插件会自动将切换条放到该位置，无需修改已安装的 DSH 文件。Workspaces 保留原生工作区浏览器。修改客户端后也需要刷新，不应假定热更新已启用。
-
-如果已安装本插件的早期本地版本，请先在 DSH 插件管理中停用并移除旧实例，避免同时接管侧栏；浏览器存储可以保留。
-
-### 使用 tarball 安装
+### 备选：使用 tarball 安装
 
 不经过 npm 注册表分发时，在仓库根目录执行：
 
@@ -69,22 +75,15 @@ dsh plugin --profile web add /absolute/path/yiliang114-dsh-session-deck-0.1.2.tg
 
 安装后刷新 GUI。tarball 安装不依赖原仓库目录持续存在。链接和 tarball 两种安装方式都会在支持的 rc.2 布局中自动将切换条放到工作区区域上方，无需宿主补丁。
 
-### npm 安装与市场发现
+### 自定义插件市场
 
-**安装前，先确认官方注册表中存在 0.1.2 版本：**
-
-```sh
-npm view @yiliang114/dsh-session-deck@0.1.2 version --registry=https://registry.npmjs.org
-dsh plugin --profile web add @yiliang114/dsh-session-deck@0.1.2 --ignore-scripts
-```
-
-[市场索引](market-index.json)只列出经 npm 验证的发布版本。若内容为 `plugins: []`，表示**没有可显示的已发布条目**。DSH 自定义插件市场读取用户添加的索引源；发布 npm 不会触发官方 DSH 市场的自动收录。
-
-确认发布且更新索引后，可以在 DSH 自定义插件市场中添加以下直接 JSON 地址：
+[市场索引](https://raw.githubusercontent.com/yiliang114/dsh-session-deck/main/market-index.json)已列出经验证的 **0.1.2** npm 发布版本。在 DSH 自定义插件市场中添加以下原始 JSON 地址作为索引源：
 
 ```text
 https://raw.githubusercontent.com/yiliang114/dsh-session-deck/main/market-index.json
 ```
+
+这是**用户自行添加的自定义市场源**，并非 DSH 官方收录。发布 npm 不会自动将插件加入官方 DSH 市场。
 
 维护者请参阅[发布指南（英文）](https://github.com/yiliang114/dsh-session-deck/blob/main/docs/releasing.md)，了解首次 npm 发布、OIDC 授权和索引更新。
 

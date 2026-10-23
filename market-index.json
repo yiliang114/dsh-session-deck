@@ -1,5 +1,29 @@
 {
   "format": 1,
   "title": "DSH Session Deck by yiliang114",
-  "plugins": []
+  "plugins": [
+    {
+      "name": "@yiliang114/dsh-session-deck",
+      "title": "DSH Session Deck",
+      "description": "Activity and Favorites views for DeepSeek Harness: track running, waiting, and unread sessions across workspaces.",
+      "author": "yiliang114",
+      "homepage": "https://github.com/yiliang114/dsh-session-deck#readme",
+      "repository": {
+        "url": "https://github.com/yiliang114/dsh-session-deck"
+      },
+      "versions": [
+        {
+          "version": "0.1.2",
+          "publishTimestamp": 1792769924,
+          "engines": {
+            "dsh": "0.2.1-rc.2"
+          },
+          "source": {
+            "type": "npm",
+            "registry": "https://registry.npmjs.org"
+          }
+        }
+      ]
+    }
+  ]
 }

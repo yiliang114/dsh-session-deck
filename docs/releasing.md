@@ -6,6 +6,8 @@ This guide is for maintainers of **`@yiliang114/dsh-session-deck`**. The current
 
 The [publish workflow](../.github/workflows/publish.yml) supports an initial tagged publication using a repository `NPM_TOKEN` secret, then tokenless npm trusted publishing after the package exists. Authentication must be configured before publishing; committing the workflow does not authorize it.
 
+Version **0.1.2** is published through the [successful release workflow](https://github.com/yiliang114/dsh-session-deck/actions/runs/39979809316), with its registry tarball integrity and isolated installation verified. The bootstrap procedure below applies when creating a new package; do not recreate or republish existing version tags.
+
 ## Verify a release candidate
 
 On the reviewed release commit:
@@ -55,7 +57,7 @@ After the package exists, open its npm **Settings → Trusted Publisher** config
 | Workflow filename | `publish.yml` |
 | Environment | Leave empty; the workflow does not declare an environment. |
 
-Use the workflow filename, not its repository path. The binding must authorize direct `npm publish`. Follow the current [npm trusted publishing documentation](https://docs.npmjs.com/trusted-publishers/) for any additional verification and eligibility requirements. This is npm-side setup, not a setting inferred from the repository files.
+Use the workflow filename, not its repository path. Enable **Allow npm publish** so this workflow can publish directly; **Allow npm dist-tag** is not needed. Follow the current [npm trusted publishing documentation](https://docs.npmjs.com/trusted-publishers/) for any additional verification and eligibility requirements. This is npm-side setup, not a setting inferred from the repository files.
 
 The workflow uses Node.js **24**, checks for npm **11.5.1 or newer**, and grants the publishing job `id-token: write` for OIDC. Only the `npm publish` step receives `NODE_AUTH_TOKEN` from the optional `NPM_TOKEN` secret. After configuring the trusted publisher, remove that repository secret and revoke the bootstrap token: an absent secret supplies an empty value, allowing npm to use OIDC for subsequent publications. Verification runs before publishing, followed by a registry query.
 
@@ -78,7 +80,7 @@ The workflow does not bump versions, create tags, or push market-index changes b
 
 ## Update the custom market index
 
-The [market index](../market-index.json) intentionally starts with `plugins: []`. This means **no released entries**, not a broken install or a pending automatic market submission.
+The [market index](../market-index.json) lists the verified **0.1.2** release. It is maintained explicitly after publication; npm does not automatically update it or submit the plugin to an official DSH market.
 
 After registry verification, run from the source checkout for the published version:
 

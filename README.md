@@ -1,6 +1,6 @@
 # DSH Session Deck
 
-[简体中文](https://github.com/yiliang114/dsh-session-deck/blob/main/README.zh-CN.md)
+[简体中文](https://github.com/yiliang114/dsh-session-deck/blob/main/README.zh-CN.md) · [npm 0.1.2](https://www.npmjs.com/package/@yiliang114/dsh-session-deck/v/0.1.2) · [Releases](https://github.com/yiliang114/dsh-session-deck/releases) · [Release CI](https://github.com/yiliang114/dsh-session-deck/actions/runs/39979809316)
 
 **Keep track of work across DSH workspaces without leaving your conversation.** Session Deck adds Activity and Favorites views to the native DeepSeek Harness sidebar, so you can spot running agents, reply to waiting sessions, and return to completed results.
 
@@ -25,15 +25,27 @@ Switching views keeps your current conversation open. Session rows show the titl
 
 Screenshots show the switcher above the workspace region without host patches, below global panels. The interface and anonymized session titles are English; browser menus, tabs, and the address bar are excluded.
 
-## Install locally
+## Install from npm
 
-The package name is **`@yiliang114/dsh-session-deck`**. A local checkout or tarball can be installed without npm publication; for registry installation, check version availability as described below.
+**Version 0.1.2 is available on [npm](https://www.npmjs.com/package/@yiliang114/dsh-session-deck/v/0.1.2)**, published through [release CI](https://github.com/yiliang114/dsh-session-deck/actions/runs/39979809316). The official npm tarball was installed in isolation, its SHA512 integrity verified, and its host, client, and patch files checked against the source.
 
 Requirements:
 
 - Node.js **22 or newer**.
 - DSH Web GUI **0.2.1-rc.2**. This is the exact supported host version; other versions are unverified.
 - DSH's native sidebar, session, and workspace plugins enabled.
+
+**Migrating from an earlier installation:** disable and remove the old plugin instance in DSH's plugin manager **before installing from npm**, to avoid two instances controlling the sidebar. You can keep its browser storage.
+
+```sh
+dsh plugin --profile web add @yiliang114/dsh-session-deck@0.1.2 --ignore-scripts
+```
+
+Replace `web` if you use another profile. Refresh your existing DSH GUI, then choose **Workspaces / Activity / Favorites** above the workspace region, below global panels. On the supported DSH 0.2.1-rc.2 layout, the plugin places the switcher there automatically without patching installed DSH files. The native workspace browser remains available in Workspaces. Refresh after client changes too; hot reload is not assumed.
+
+The plugin's own labels are English. To make the rest of DSH English too, use **More → Settings → General → Language → English**. Session titles remain in the language you wrote them.
+
+### Alternative: link a local checkout
 
 ```sh
 git clone https://github.com/yiliang114/dsh-session-deck.git
@@ -42,17 +54,11 @@ npm run verify
 dsh plugin --profile web add "link:$PWD" --offline --ignore-scripts
 ```
 
-There are no dependencies to install. The repository includes the client bundle; `build` checks JavaScript syntax rather than generating it. Replace `web` if you use another profile. Keep the checkout in place while using a linked installation.
+There are no dependencies to install. The repository includes the client bundle; `build` checks JavaScript syntax rather than generating it. Keep the checkout in place while using a linked installation.
 
 You can also install through **Plugins → Add plugin → Install a third-party plugin**: enter `link:/absolute/path/to/dsh-session-deck`, choose **Install**, then **Enable now**, and refresh the page.
 
-The plugin's own labels are English. To make the rest of DSH English too, use **More → Settings → General → Language → English**. Session titles remain in the language you wrote them.
-
-Refresh your existing DSH GUI, then choose **Workspaces / Activity / Favorites** above the workspace region, below global panels. On the supported DSH 0.2.1-rc.2 layout, the plugin places the switcher there automatically without patching installed DSH files. The native workspace browser remains available in Workspaces. Refresh after client changes too; hot reload is not assumed.
-
-If you installed an earlier local version of this plugin, disable and remove it in DSH's plugin manager first to avoid two instances controlling the sidebar. You can keep its browser storage.
-
-### Install from a tarball
+### Alternative: install from a tarball
 
 To distribute the plugin without npm, run from the checkout:
 
@@ -69,22 +75,15 @@ dsh plugin --profile web add /absolute/path/yiliang114-dsh-session-deck-0.1.2.tg
 
 Refresh the GUI. A tarball installation does not depend on the original checkout. Both linked and tarball installations place the switcher above the workspace region automatically on the supported rc.2 layout; neither needs a host patch.
 
-### npm installation and market discovery
+### Custom plugin market
 
-**Confirm that version 0.1.2 exists in the official registry before installing:**
-
-```sh
-npm view @yiliang114/dsh-session-deck@0.1.2 version --registry=https://registry.npmjs.org
-dsh plugin --profile web add @yiliang114/dsh-session-deck@0.1.2 --ignore-scripts
-```
-
-The [market index](market-index.json) lists only verified npm releases. An empty `plugins: []` means there are **no released entries** to display. DSH's custom plugin market uses user-added index sources; npm publication does not automatically collect or list a plugin in an official DSH market.
-
-After a confirmed release is added to the index, its direct URL can be added through DSH's custom plugin market:
+The [market index](https://raw.githubusercontent.com/yiliang114/dsh-session-deck/main/market-index.json) lists the verified **0.1.2** npm release. Add the following raw JSON URL as a source in DSH's custom plugin market:
 
 ```text
 https://raw.githubusercontent.com/yiliang114/dsh-session-deck/main/market-index.json
 ```
+
+This is a **user-added custom market source**, not an official DSH listing. Publishing to npm does not automatically add the plugin to an official DSH market.
 
 Maintainers: see the [release guide](https://github.com/yiliang114/dsh-session-deck/blob/main/docs/releasing.md) for npm bootstrap, OIDC configuration, and index updates.
 
