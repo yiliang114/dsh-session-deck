@@ -96,6 +96,18 @@ Maintainers: see the [release guide](https://github.com/yiliang114/dsh-session-d
 - A session becomes unread when it and its known descendants finish while you are viewing something else. Opening it clears the marker. Persisted observations can recover completions across a refresh, but cannot reconstruct work that started and finished while every page was closed or was never observed.
 - Archiving an active session requires a **Stop and archive** confirmation. There is no permanent-delete action. Switch to Workspaces for the complete native menus, including actions from other plugins.
 
+## DSH compatibility and switcher position
+
+Version compatibility and switcher placement are separate checks. This plugin declares an exact `engines.dsh` match of **0.2.1-rc.2**; a bottom-position switcher on that version does not indicate an outdated plugin or a version mismatch.
+
+| DSH sidebar | `sidebar.workspaces.before` | Session Deck support |
+| --- | --- | --- |
+| Official **0.2.1-rc.2** | Absent; the switcher falls back to the footer. | Verified in the real GUI. |
+| **0.2.1-rc.2** with the local patch below | Added after global panels, including Automation tasks. | Accepted by the version-checked patch script. |
+| Official **0.2.1-rc.3** | Still absent in its published client and slot contract. | Full plugin compatibility is unverified; excluded by the current engine declaration. |
+
+The rc.3 published files were inspected on **2026-10-23**. Upgrading to rc.3 alone does not provide the missing slot. The patch is a local modification to DSH, not an official update or a step automatically performed by plugin installation. Supporting another host version requires validating its session, workspace, slot, and UI APIs before widening `engines.dsh` or the patch script's version guard.
+
 ## Optional: place the switcher above the list
 
 DSH 0.2.1-rc.2 does not expose an official slot at this position. The [sidebar patch script](scripts/patch-sidebar-before.mjs) adds a local `sidebar.workspaces.before` slot after the global panel entries and before the workspace area. **The plugin works without this patch**, using the bottom position as its fallback.
