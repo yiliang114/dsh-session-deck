@@ -1,244 +1,147 @@
 # DSH Session Deck
 
-在 DeepSeek Harness（DSH）原生侧栏中，集中查看跨工作区的会话、运行状态、未读结果与收藏。
+[简体中文](https://github.com/yiliang114/dsh-session-deck/blob/main/README.zh-CN.md)
 
-npm 包名为 **`@yiliang114/dsh-session-deck`**，使用 MIT 许可证。无 scope 的 `dsh-session-activity` 与 `dsh-session-deck` 是其他作者的包，请勿误装。浏览器存储键沿用早期本地版本的 `dsh-session-activity.*`，以保留当前视图和未读状态。
+**Keep track of work across DSH workspaces without leaving your conversation.** Session Deck adds Activity and Favorites views to the native DeepSeek Harness sidebar, so you can spot running agents, reply to waiting sessions, and return to completed results.
 
-这是使用 DSH 原生插件机制的第三方插件，不是 DSH 官方内置组件。**安装使用不要求发布 npm**：本地开发可使用 `link:`，分发可使用 npm tarball；发布 npm 后才可通过注册表包名安装。
+A community plugin with an English interface, no extra npm dependencies, and no telemetry. Licensed under [MIT](LICENSE).
 
-## 功能
+## Three views, one sidebar
 
-| 视图 | 用途 |
+| View | What it helps you do |
 | --- | --- |
-| 工作区 | 使用 DSH 原生工作区树，保留原生管理和其他插件贡献的菜单 |
-| 活动 | 汇总跨工作区的运行中、等待回复、未读及最近会话 |
-| 收藏 | 汇总 DSH 原生置顶会话，与工作区树的置顶状态同步 |
+| **Activity** | Follow running, waiting, unread, and recent sessions across all workspaces. |
+| **Favorites** | Keep important sessions close using DSH's native pinned sessions. |
+| **Workspaces** | Return to the native workspace tree, its management tools, and other plugins' menus. |
 
-三个视图共用原有侧栏区域，切换视图不会改变当前对话。
+Switching views keeps your current conversation open. Session rows show the title, workspace, time, and status; their menus provide favorite, rename, fork, archive, and copy-ID actions.
 
-- 活动列表按宿主 `updatedAt` 降序排列，保留全部运行中、等待回复和未读会话，以及最多 20 条普通最近会话。该时间不是最后打开会话的时间。
-- 收藏展示全部符合条件的置顶会话，不受最近 20 条限制。
-- 会话以两行显示标题和工作区；右侧显示时间、旋转运行图标、琥珀色等待点或蓝色未读点。状态优先级为等待回复、运行中、未读。
-- 悬停或键盘聚焦后显示归档按钮和更多菜单；触屏设备保留操作按钮。菜单支持收藏、重命名、分叉、归档和复制会话 ID。
-- 已知子代理仍在运行时，父会话保持运行状态；打开会话会自动清除完成未读标记。
+*Screenshots captured from a local DSH installation in English; session titles and workspace names anonymized.*
 
-归档会话、子代理会话和空白会话不单独出现在列表中；普通分叉会话正常显示。
+| Activity | Favorites | Workspaces |
+| --- | --- | --- |
+| Follow active work and unread results. | Return to native pinned sessions. | Keep the complete workspace controls. |
+| ![English Activity view](docs/images/activity.png) | ![English Favorites view](docs/images/favorites.png) | ![English native Workspaces view](docs/images/workspaces.png) |
 
-## 环境要求
+Screenshots show the unmodified DSH sidebar, with the view switcher at the bottom. Browser menus, tabs, and the address bar are excluded.
 
-- Node.js **22 或以上**。
-- DSH Web GUI；当前适配版本为 **0.2.1-rc.2**，其他版本尚未验证。
-- 已启用 DSH 原生侧栏、会话和工作区插件。
+## Install locally
 
-本插件没有额外 npm 依赖，仓库已包含可直接加载的客户端文件。
+**The npm package has not been published. Use a local checkout or tarball today.** The package name is **`@yiliang114/dsh-session-deck`**.
 
-## npm 安装
+Requirements:
 
-首次发布完成后，可执行：
-
-```sh
-dsh plugin --profile web add @yiliang114/dsh-session-deck@0.1.0 --ignore-scripts
-```
-
-如果此前安装了本仓库的旧本地包 `dsh-session-activity`，先在插件管理中停用并移除该旧包，再安装新包，避免两个实例同时接管侧栏。浏览器存储不需要清除。
-
-## 本地安装
-
-在仓库根目录执行：
+- Node.js **22 or newer**.
+- DSH Web GUI **0.2.1-rc.2**. This is the exact supported host version; other versions are unverified.
+- DSH's native sidebar, session, and workspace plugins enabled.
 
 ```sh
-npm run build
-npm test
+git clone https://github.com/yiliang114/dsh-session-deck.git
+cd dsh-session-deck
+npm run verify
 dsh plugin --profile web add "link:$PWD" --offline --ignore-scripts
 ```
 
-上面的命令面向 `web` profile；使用其他 profile 时替换名称。通过本地链接安装后，需要保留仓库目录。完成安装或修改客户端后，刷新现有 DSH GUI；不要假定开发热更新已启用。
+There are no dependencies to install. The repository includes the client bundle; `build` checks JavaScript syntax rather than generating it. Replace `web` if you use another profile. Keep the checkout in place while using a linked installation.
 
-首次使用时，从侧栏的 **工作区 / 活动 / 收藏** 切换视图。原版 DSH 中切换条位于侧栏底部；需要放到全局入口下方、会话列表上方时，可应用下面的可选补丁。
+You can also install through **Plugins → Add plugin → Install a third-party plugin**: enter `link:/absolute/path/to/dsh-session-deck`, choose **Install**, then **Enable now**, and refresh the page.
 
-## 分发与 npm 发布
+The plugin's own labels are English. To make the rest of DSH English too, use **More → Settings → General → Language → English**. Session titles remain in the language you wrote them.
 
-### 不经过 npm 注册表分发
+Refresh your existing DSH GUI, then choose **Workspaces / Activity / Favorites** in the sidebar. On an unmodified DSH installation, the switcher appears at the bottom; the [optional sidebar patch](#optional-place-the-switcher-above-the-list) moves it above the list. Refresh after client changes too; hot reload is not assumed.
 
-在仓库根目录验证并打包：
+If you installed an earlier local version of this plugin, disable and remove it in DSH's plugin manager first to avoid two instances controlling the sidebar. You can keep its browser storage.
+
+### Install from a tarball
+
+To distribute the plugin without npm, run from the checkout:
 
 ```sh
 npm run verify
 npm pack --ignore-scripts
 ```
 
-当前版本生成 `yiliang114-dsh-session-deck-0.1.0.tgz`。把文件复制到目标机器后，使用其绝对路径安装：
+Copy the generated archive to the target machine, then install using its absolute path:
 
 ```sh
 dsh plugin --profile web add /absolute/path/yiliang114-dsh-session-deck-0.1.0.tgz --ignore-scripts
 ```
 
-tarball 包含宿主入口、已就绪的客户端、Cordis 配置、README 和可选补丁脚本，不需要构建依赖，也不会自动执行宿主补丁。安装后刷新 GUI。与 `link:` 不同，tarball 安装不依赖原仓库目录持续存在。
+Refresh the GUI. A tarball installation does not depend on the original checkout and does not apply the optional host patch automatically.
 
-### 维护者发布流程
+### Future npm and market availability
 
-普通 CI 只验证；[发布工作流](.github/workflows/publish.yml) 在推送 `v*` tag 时发布 npm，并要求 tag 与包版本精确一致。它使用 Node.js 24、npm 11.5.1 或以上以及 OIDC，不保存 npm token。手动重试工作流时必须选择版本 tag，选择分支不会发布。
-
-首次创建包需要已获权限的 npm 登录身份，在已审查的发布提交上执行：
+**Only after version 0.1.0 is published and verified**, this command will become usable:
 
 ```sh
-npm run verify
-npm publish --access public --ignore-scripts
-npm view @yiliang114/dsh-session-deck@0.1.0 version --registry=https://registry.npmjs.org
+dsh plugin --profile web add @yiliang114/dsh-session-deck@0.1.0 --ignore-scripts
 ```
 
-首次发布后，在 npm 包 Settings 的 Trusted Publisher 中配置 GitHub Actions：
+The [market index](market-index.json) currently contains `plugins: []`: there are **no released entries**, so adding the index will not display this plugin. DSH's custom plugin market uses user-added index sources; npm publication does not automatically collect or list a plugin in an official DSH market.
 
-| 字段 | 值 |
-| --- | --- |
-| Organization or user | `yiliang114` |
-| Repository | `dsh-session-deck` |
-| Workflow filename | `publish.yml` |
-| Environment | 留空（当前 workflow 未使用 environment） |
-
-允许该绑定执行直接 `npm publish`。配置只写 workflow 文件名，不填写 `.github/workflows/` 路径。此 npm 端授权不会因合并工作流而自动生效；具体界面和首次验证时限以 [npm Trusted Publishing 文档](https://docs.npmjs.com/trusted-publishers/) 为准。
-
-后续发布步骤：更新包版本并通过 PR 合并到 `main`，验证目标 DSH 上的交互，然后为该提交创建同版本 tag 并推送。例如包版本更新到 `0.1.1` 后：
-
-```sh
-git tag v0.1.1
-git push origin v0.1.1
-```
-
-npm 版本不能覆盖。已经从本机发布的首次版本不要再次通过工作流发布；后续 tag 必须对应新版本。
-
-### DSH 自定义插件市场
-
-当前 DSH **没有官方统一插件市场**；发现页展示用户自己添加的索引源，发布 npm 不会自动出现在发现页中。参见 [DSH 官方说明](https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/experimental/plugin-market-bundle/README.md)。
-
-本仓库提供 [市场索引](market-index.json)。仓库公开且索引包含已发布版本后，用户可以：
-
-1. 在 DSH **插件 → 实验性插件 → 更多** 中启用 **自定义插件市场**。
-2. 打开 **发现 → 添加索引源**。
-3. 添加以下直接 JSON 地址，查找 **DSH Session Deck** 并安装：
+After a confirmed release is added to the index, its direct URL can be added through DSH's custom plugin market:
 
 ```text
 https://raw.githubusercontent.com/yiliang114/dsh-session-deck/main/market-index.json
 ```
 
-索引使用格式版本 1，标明适配的 DSH 版本和 npm 安装源。不能使用会重定向的 GitHub 文件预览地址。索引被其他社区市场维护者收录是独立流程，没有官方自动审核或自动收录步骤。
+Maintainers: see the [release guide](https://github.com/yiliang114/dsh-session-deck/blob/main/docs/releasing.md) for npm bootstrap, OIDC configuration, and index updates.
 
-每次 npm 发布成功后，在对应版本的源码上运行以下命令，再将索引变更提交到 `main`：
+## How session status works
 
-```sh
-npm run market:update
-```
+- **Activity keeps all running, waiting, and unread sessions**, plus at most **20 ordinary recent sessions**, sorted by DSH's `updatedAt` rather than last-opened time. Favorites has no 20-session limit.
+- Favorites are **native DSH pins**, shared with the workspace tree. Archived, subagent, and empty sessions are omitted from the lists; ordinary forks remain visible.
+- Status priority is **waiting for a reply → running → unread**. A parent remains running while any known subagent descendant is running; ordinary forks do not propagate status to their source.
+- Aggregation covers only descendants known to DSH's session directory. **Independent background shell jobs are not tracked**: an idle session does not mean every process it launched has exited.
+- A session becomes unread when it and its known descendants finish while you are viewing something else. Opening it clears the marker. Persisted observations can recover completions across a refresh, but cannot reconstruct work that started and finished while every page was closed or was never observed.
+- Archiving an active session requires a **Stop and archive** confirmation. There is no permanent-delete action. Switch to Workspaces for the complete native menus, including actions from other plugins.
 
-该脚本从 npm 读取真实发布时间和包元数据，并保留旧版本；查询不到目标版本时会失败，不会把未发布版本写入索引。发布工作流不会自动推送源码。索引为空时发现页不会展示本插件。
+## Optional: place the switcher above the list
 
-## 可选：将切换条放到列表上方
+DSH 0.2.1-rc.2 does not expose an official slot at this position. The [sidebar patch script](scripts/patch-sidebar-before.mjs) adds a local `sidebar.workspaces.before` slot after the global panel entries and before the workspace area. **The plugin works without this patch**, using the bottom position as its fallback.
 
-DSH 0.2.1-rc.2 尚未提供该位置的扩展槽位。本仓库的 [侧栏补丁脚本](scripts/patch-sidebar-before.mjs) 会向已安装的侧栏包增加 `sidebar.workspaces.before`，位置在所有全局面板入口之后、工作区区域之前。
-
-这是**本地宿主补丁，并非 DSH 已发布的官方接口**。不应用补丁也可正常使用插件，切换条会显示在底部。
-
-先找到正在运行的 DSH 所使用的 `@deepseek-ai/dsh-client-ui-sidebar` 包目录，再从本仓库根目录执行以下命令。将示例路径替换为实际包目录，不是 DSH 根目录或本插件目录：
+Locate the `@deepseek-ai/dsh-client-ui-sidebar` package actually used by your running DSH. From this repository, replace the placeholder with that package's directory, not the DSH root or this plugin directory:
 
 ```sh
 node scripts/patch-sidebar-before.mjs /path/to/dsh-client-ui-sidebar
 node --check /path/to/dsh-client-ui-sidebar/lib/client.js
 ```
 
-脚本仅接受 `0.2.1-rc.2`，写入前检查两个目标文件的代码锚点，并保存相邻的 `.dsa-before.backup` 备份。支持重复执行；遇到不匹配的代码会拒绝修改。应用后刷新 GUI。
+The script accepts only **0.2.1-rc.2**, checks both target files before writing, and saves adjacent `.dsa-before.backup` files. It is safe to rerun and rejects unexpected code. Refresh the GUI after applying it.
 
-恢复原侧栏：
+To restore the original sidebar:
 
 ```sh
 node scripts/patch-sidebar-before.mjs /path/to/dsh-client-ui-sidebar --rollback
 ```
 
-恢复操作依赖原始备份；目标文件存在其他改动时，脚本会拒绝覆盖。恢复后刷新 GUI，插件回到底部位置。
+Rollback needs the original backups and refuses to overwrite unrelated changes. Refresh again to return to the bottom position. DSH reinstalls or upgrades may replace the patch; check compatibility before reapplying it. If you modify a DSH source checkout, rebuild the affected client artifacts as well.
 
-DSH 重装或升级可能覆盖补丁。升级后先检查兼容性；不要绕过版本检查强行应用。侧栏槽位不存在时，插件自动使用底部位置。若修改的是 DSH 源码而非已发布包，还需重新构建对应客户端产物。
+## Privacy and local storage
 
-## 会话状态与操作
+Session Deck uses DSH's session and workspace APIs. It makes **no model calls, sends no telemetry, and has no external upload endpoint**.
 
-### 完成未读
+Browser `localStorage` retains the original keys for compatibility:
 
-会话自身及其已知子代理后代全部停止后，如果该会话未在主视图中打开，就标记为未读。打开会话即清除标记，没有手动确认按钮；正在查看的会话完成时不会产生未读。
+| Key | Stored data |
+| --- | --- |
+| `dsh-session-activity.mode.v1` | Selected view. |
+| `dsh-session-activity.pending.v1` | Session IDs, observed running state, and completion/unread metadata. |
 
-插件会保存已观察到的运行基线，因此刷新期间停止的会话仍可恢复未读状态。已有但从未观察到、也没有宿主未读信号的历史空闲会话，不会被推断成未读。
+No conversation bodies are stored by the plugin. Favorites remain in DSH's native pinned data. View and unread state sync between tabs on the same origin, not across devices. If storage is unavailable, state stays in memory. Clearing browser storage resets this metadata; processed records are capped at 1,000, while running and unread records are retained.
 
-### 子代理与后台任务
+Disable or remove **`@yiliang114/dsh-session-deck`** in DSH's plugin manager to stop using it. Removal does not clear browser storage or undo the optional host patch; use the rollback command separately.
 
-运行状态沿宿主提供的子代理父子关系向上传播，支持多层子代理；普通分叉不会把运行状态传播给来源会话。仅能跟踪宿主会话目录中的已知子代理，缺失或外部子代理无法推断。
-
-**独立后台 shell 作业不计入此聚合状态。** 它们使用独立的 jobs API，本插件没有订阅这些作业。因此，会话空闲并不代表它启动过的所有后台进程均已退出。
-
-### 归档与完整菜单
-
-归档运行中的会话会先出现“停止并归档”确认；取消不会停止任务。本插件不提供永久删除。
-
-其他插件贡献的原生菜单项，可通过“切回工作区 · 完整操作”访问。活动和收藏模式不会重新声明原生工作区树独占的菜单槽位。
-
-## 数据与隐私
-
-插件通过 DSH 的会话和工作区接口读取状态并执行用户操作，没有额外的遥测或外部上传端点，不发起模型调用。
-
-浏览器 `localStorage` 保存：
-
-- `dsh-session-activity.mode.v1`：当前视图。
-- `dsh-session-activity.pending.v1`：会话 ID、运行基线和完成未读元数据。
-
-收藏使用 DSH 原生置顶数据，不另存一份收藏列表。浏览器存储中的元数据不包含会话正文，但会包含会话 ID。
-
-同源标签页同步视图和未读状态，不跨设备同步。存储不可用时退化为内存状态；清除浏览器存储会重置本插件保存的数据。已处理元数据最多保留 1000 条，运行中和未读记录不受此清理上限影响。所有页面关闭期间完整开始并结束的运行无法回填。
-
-## 常见问题
-
-**为什么切换条仍在底部？**
-
-这是未应用侧栏补丁时的正常位置。确认补丁作用于当前 DSH 实际加载的侧栏包，并刷新页面。
-
-**为什么某个会话没出现在活动列表？**
-
-先检查是否已归档、属于子代理或没有可显示内容。普通最近会话最多保留 20 条；需要长期关注的会话可以收藏。
-
-**为什么父会话仍在转圈？**
-
-宿主目录中的某个已知子代理可能仍在运行。活动和收藏使用相同的聚合规则。
-
-**如何停用？**
-
-在 DSH 插件管理中停用或移除 `@yiliang114/dsh-session-deck`。如果应用过侧栏补丁，可按上面的恢复步骤单独撤销；停用插件不会自动恢复宿主文件，也不会主动清除浏览器存储。
-
-## 开发与验证
+## Development
 
 ```sh
 npm run verify
 ```
 
-统一验证命令依次执行：
+This runs syntax checks, Node.js tests for session selection and state handling, and a dry-run package-content check. CI runs it on Node.js 22 and 24. There is no separate lint or TypeScript check, and automated checks do not replace testing the real DSH GUI.
 
-- `npm run build`：检查宿主入口、客户端和维护脚本的 JavaScript 语法，不生成新的客户端文件。
-- `npm test`：使用 Node.js 内置测试运行器和真实客户端逻辑，覆盖筛选、收藏、未读持久化、跨标签页合并与子代理聚合。
-- `npm run check:package`：使用 `npm pack --dry-run --json --ignore-scripts` 检查分发文件清单，确保导出入口与 Cordis 配置均在包内，阻止测试、CI 配置和其他非分发文件混入。此步骤不生成 tarball，也不发布 npm。
+The client lives in [lib/client.js](lib/client.js), with a minimal [host entry](src/host.mjs) and [Cordis configuration](cordis.patch.yml). Report bugs with your DSH version, installation method, and reproduction steps in [GitHub Issues](https://github.com/yiliang114/dsh-session-deck/issues).
 
-项目没有 npm 依赖，无需先执行 `npm install`，也没有依赖锁文件。引入依赖时，应提交锁文件，并在 CI 中加入 `npm ci`。目前未配置独立 lint 或 TypeScript typecheck；语法检查和逻辑测试不能替代真实 GUI 交互验证。
+## License
 
-### GitHub Actions
-
-[CI 工作流](.github/workflows/ci.yml) 在指向仓库的 PR、推送到 `main` 及手动触发时执行，在 Ubuntu 上分别使用 Node.js 22 和 24 运行 `npm run verify`。它仅授予 `contents: read` 权限，不需要 Secrets，也不安装或修改运行中的 DSH。相同 PR 或分支的新运行会取消旧运行。
-
-维护者需要在仓库 **Settings → Actions → General** 中允许 GitHub Actions 以及 `actions/checkout`、`actions/setup-node`。工作流首次运行后，可在 `main` 的分支保护或 Ruleset 中将 `Verify (Node 22)` 和 `Verify (Node 24)` 设为必需检查。私有仓库的 Actions 配额和分支保护可用性取决于 GitHub 账户方案。
-
-CI 校验的是插件源码与打包清单，不代表已经在多个 DSH 版本完成兼容测试；目前宿主适配范围仍为 `0.2.1-rc.2`。
-
-| 文件 | 作用 |
-| --- | --- |
-| [lib/client.js](lib/client.js) | 客户端视图、选择器与状态存储，手写 ModuleLoader 包 |
-| [src/host.mjs](src/host.mjs) | 最小宿主入口 |
-| [cordis.patch.yml](cordis.patch.yml) | DSH 插件安装配置 |
-| [test/selection.test.mjs](test/selection.test.mjs) | 状态与筛选回归测试 |
-| [scripts/patch-sidebar-before.mjs](scripts/patch-sidebar-before.mjs) | 可选侧栏槽位补丁及恢复工具 |
-
-客户端使用根级 `useSessions`、`useSessionStatus`、`useWorkspaces` hooks。活动和收藏以更高优先级注册 `sidebar.workspaces`；切回工作区时释放注册，由原生工作区树接管。运行状态通过同一聚合逻辑驱动行状态与完成未读判断。
-
-## 项目状态与许可证
-
-本项目采用 [MIT 许可证](LICENSE)，由社区维护，与 DSH 官方内置插件分开发布。
+[MIT](LICENSE). Independently maintained; not an official built-in DSH component.

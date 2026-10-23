@@ -13,6 +13,7 @@ const required = [
   ...Object.values(manifest.exports),
   manifest.dsh.bundle.patch,
   'README.md',
+  'README.zh-CN.md',
   'LICENSE',
   'scripts/patch-sidebar-before.mjs',
 ]
@@ -20,7 +21,7 @@ for (const path of required) {
   assert.ok(files.has(path.replace(/^\.\//, '')), `Package is missing ${path}`)
 }
 for (const path of files) {
-  assert.ok(/^(src\/|lib\/|scripts\/patch-sidebar-before\.mjs$|cordis\.patch\.yml$|README\.md$|package\.json$|LICENSE(?:\.[^/]+)?$)/.test(path), `Unexpected package file: ${path}`)
+  assert.ok(/^(src\/|lib\/|scripts\/patch-sidebar-before\.mjs$|cordis\.patch\.yml$|README(?:\.zh-CN)?\.md$|package\.json$|LICENSE(?:\.[^/]+)?$)/.test(path), `Unexpected package file: ${path}`)
 }
 assert.equal(packed.name, manifest.name)
 assert.equal(packed.version, manifest.version)

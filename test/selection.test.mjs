@@ -6,9 +6,21 @@ let plugin
 vm.runInNewContext(readFileSync(new URL('../lib/client.js', import.meta.url), 'utf8'), {
   window: { __ModuleLoader__: { load: entry => { plugin = entry.factory(name => { assert.ok(['react', '@deepseek-ai/dsh-client-ui-primitives'].includes(name)); return {} }) } } },
 })
-const { selectActivity, createModeStore, createPendingStore, KEY, PENDING_KEY, MAX_RECORDS } = plugin.__test__
+const { selectActivity, createModeStore, createPendingStore, ago, KEY, PENDING_KEY, MAX_RECORDS } = plugin.__test__
 const session = (id, updatedAt, more = {}) => ({ id, updatedAt, displayTitle: id, running: false, ...more })
 const list = rows => ({ ids: rows.map(s => s.id), byId: Object.fromEntries(rows.map(s => [s.id, s])) })
+test('relative times use compact English labels at unit boundaries', () => {
+  const now = 10 * 86400000
+  assert.equal(ago(0, now), '')
+  for (const [minutes, expected] of [[-1, 'Just now'], [0, 'Just now'], [1, '1m ago'], [59, '59m ago'], [60, '1h ago'], [1439, '23h ago'], [1440, '1d ago'], [2880, '2d ago']]) {
+    assert.equal(ago(now - minutes * 60000, now), expected)
+  }
+})
+test('workspace labels preserve titles and path basenames before falling back to English', () => {
+  const rows = [session('named', 4, { cwd: '/projects/other' }), session('unix', 3, { cwd: '/projects/app/' }), session('windows', 2, { cwd: 'C:\\projects\\tools\\' }), session('none', 1)]
+  const result = selectActivity(list(rows), new Map(), { items: [{ title: 'My workspace', sessionIds: ['named'] }] })
+  assert.equal(result.recent.map(s => s.workspace).join(','), 'My workspace,app,tools,Ungrouped')
+})
 test('excludes archived, subagents and blank but preserves ordinary forks', () => {
   const rows = [session('normal', 5), session('fork', 4, { parentId: 'normal' }), session('child', 9, { origin: 'subagent' }), session('archived', 10, { running: true }), session('blank', 11, { blank: true })]
   const result = selectActivity(list(rows), new Map(), { items: [{ title: 'Project', sessionIds: ['fork'] }], archivedSessionIds: ['archived'] })
