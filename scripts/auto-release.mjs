@@ -99,6 +99,28 @@ export function assertFreshMain(run, expected) {
     'main moved before publication; rerun on main (or resume the reserved tag if one was pushed)')
 }
 
+export function canReleaseTrigger(run, triggerSha, mainSha) {
+  assert.match(triggerSha ?? '', /^[a-f0-9]{40,64}$/, 'Missing workflow source SHA')
+  if (triggerSha === mainSha) return true
+  if (!run('git', ['merge-base', '--is-ancestor', triggerSha, mainSha], { allowFailure: true, quiet: true }).ok) return false
+  // Market-index commits do not change the npm package. Other newer source must
+  // be released by its own queued workflow, whose OIDC identity matches it.
+  return onlyMarketCommits(run, triggerSha)
+}
+
+export function assertResumeIdentity(sha, triggerSha, tag) {
+  assert.equal(sha, triggerSha,
+    `To publish reserved ${tag}, dispatch this workflow using ref ${tag} (gh workflow run publish.yml --ref ${tag}). The workflow OIDC source SHA must match the reserved source; then dispatch main to ship newer changes.`)
+}
+
+export function assertReservationOnMain(run, sha) {
+  run('git', ['fetch', 'origin', 'main'])
+  // A newer descendant is safe: publish the immutable reservation, then let the
+  // queued main run release newer source. Rewritten history requires inspection.
+  assert.ok(run('git', ['merge-base', '--is-ancestor', sha, 'origin/main'], { allowFailure: true, quiet: true }).ok,
+    'Reserved release is no longer on main; inspect rewritten history before publishing')
+}
+
 export function reserve(run, version, expected) {
   assertFreshMain(run, expected)
   const tag = `v${version}`
@@ -146,7 +168,7 @@ export function checkPendingReservation(run, mainSha, resumeTag, ghToken) {
     assert.ok(sha && isReservation(run, tag), `Reservation ${tag} has no matching tag; inspect repository history`)
     run('git', ['merge-base', '--is-ancestor', sha, mainSha])
     if (!resumeTag && sha !== mainSha && !onlyMarketCommits(run, sha) && !releaseExists(run, tag, ghToken)) {
-      throw new Error(`Unfinished reservation ${tag} precedes newer main changes. Dispatch on main with resume_tag=${tag}, then dispatch without it to ship newer changes. A failed GitHub lookup also requires this safe recovery path.`)
+      throw new Error(`Unfinished reservation ${tag} precedes newer main changes. Dispatch this workflow on ref ${tag} (gh workflow run publish.yml --ref ${tag}), then dispatch main to ship newer changes. A failed GitHub lookup also requires this safe recovery path.`)
     }
   }
   if (resumeTag) assert.equal(resumeTag, tag, 'Only the most recent reservation may be resumed; inspect older releases manually')
@@ -163,6 +185,12 @@ async function prepare(run, ghToken) {
   run('git', ['checkout', '-B', 'main', 'origin/main'])
   assert.equal(run('git', ['status', '--porcelain'], { quiet: true }).stdout, '', 'Release checkout must be clean')
   const mainSha = head(run)
+  assert.ok(process.env.GITHUB_ENV, 'GITHUB_ENV is required for workflow stage handoff')
+  if (!process.env.RESUME_TAG && !canReleaseTrigger(run, process.env.GITHUB_SHA, mainSha)) {
+    console.log('Skipping stale workflow source: newer main source must be released by its own workflow or a fresh main dispatch.')
+    appendFileSync(process.env.GITHUB_ENV, 'RELEASE_SKIPPED=true\n')
+    return
+  }
   checkPendingReservation(run, mainSha, process.env.RESUME_TAG, ghToken)
   let pkg = packageJson()
   stableVersion(pkg.version)
@@ -177,12 +205,13 @@ async function prepare(run, ghToken) {
     run('git', ['merge-base', '--is-ancestor', sha, mainSha])
     reuse = Boolean(process.env.RESUME_TAG) || sha === mainSha || onlyMarketCommits(run, sha)
     if (!reuse && !releaseExists(run, tag, ghToken)) {
-      throw new Error(`Unfinished reservation ${tag} precedes newer main changes. Run workflow_dispatch on main with resume_tag=${tag}, then run again without resume_tag to ship newer main changes. A failed GitHub lookup also requires this safe recovery path.`)
+      throw new Error(`Unfinished reservation ${tag} precedes newer main changes. Dispatch this workflow on ref ${tag} (gh workflow run publish.yml --ref ${tag}), then dispatch main to ship newer changes. A failed GitHub lookup also requires this safe recovery path.`)
     }
   } else if (process.env.RESUME_TAG) {
     throw new Error(`${tag} is not an automatic release reservation; refusing resume`)
   }
   if (reuse) {
+    if (process.env.RESUME_TAG) assertResumeIdentity(sha, process.env.GITHUB_SHA, tag)
     run('git', ['checkout', '--detach', sha])
     pkg = packageJson()
     assert.equal(tag, `v${pkg.version}`)
@@ -202,8 +231,7 @@ async function prepare(run, ghToken) {
     sha = reserve(run, version, mainSha)
     pkg = packageJson()
   }
-  assert.ok(process.env.GITHUB_ENV, 'GITHUB_ENV is required for workflow stage handoff')
-  appendFileSync(process.env.GITHUB_ENV, `RELEASE_SHA=${sha}\nRELEASE_TAG=${tag}\nRELEASE_MAIN_SHA=${reuse ? mainSha : sha}\n`)
+  appendFileSync(process.env.GITHUB_ENV, `RELEASE_SHA=${sha}\nRELEASE_TAG=${tag}\nRELEASE_REUSED=${reuse}\n`)
   console.log(`Reserved ${pkg.name}@${pkg.version} at ${sha}`)
 }
 
@@ -233,9 +261,11 @@ async function publish(run, npmToken) {
     assertPublishedIdentity(existing, pkg, sha, integrity)
     console.log(`Exact reserved release ${pkg.version} already exists; skipping npm publish`)
   } else {
-    assertFreshMain(run, process.env.RELEASE_MAIN_SHA)
-    // The triggering workflow SHA may predate the reserved source commit.
-    const credentials = { GITHUB_SHA: sha, ...(npmToken ? { NODE_AUTH_TOKEN: npmToken } : {}) }
+    assertReservationOnMain(run, sha)
+    if (process.env.RELEASE_REUSED === 'true') assertResumeIdentity(sha, process.env.GITHUB_SHA, `v${pkg.version}`)
+    // Keep GITHUB_SHA unchanged: npm checks it against the OIDC certificate.
+    // A fresh reservation's version bump is a build transformation of that source.
+    const credentials = npmToken ? { NODE_AUTH_TOKEN: npmToken } : {}
     // npm lifecycle scripts are disabled; only this child receives npm credentials.
     run('npm', ['publish', '--access', 'public', '--provenance', '--ignore-scripts'], { credentials })
   }
@@ -282,7 +312,7 @@ async function finalize(run, ghToken) {
       credentials: { GH_TOKEN: ghToken },
     })
   }
-  console.log(`Completed ${tag}. If resumed explicitly, run again on main without resume_tag to ship any newer changes.`)
+  console.log(`Completed ${tag}. If resumed from a tag, dispatch main to ship any newer changes.`)
 }
 
 export async function main() {

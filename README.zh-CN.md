@@ -85,7 +85,7 @@ https://raw.githubusercontent.com/yiliang114/dsh-session-deck/main/market-index.
 
 这是**用户自行添加的自定义市场源**，并非 DSH 官方收录。发布 npm 不会自动将插件加入官方 DSH 市场。
 
-维护者：预期的自动发布流程会将 `main` 推送加入发布队列，取得队列执行权后测试最新的 `main`，并递增补丁版本（例如 `0.1.2` → `0.1.3`）。需要手动选择次版本时，执行 `npm version minor --no-git-tag-version`，再正常提交并推送到 `main`：显式指定的更高稳定版本（例如 `0.2.0`）会保留，下一次发布则为 `0.2.1`。工作流负责标签、带 provenance 的发布、注册表验证、市场索引更新和 GitHub Release。认证前提与失败恢复请参阅[发布指南（英文）](https://github.com/yiliang114/dsh-session-deck/blob/main/docs/releasing.md)；此流程说明不代表新自动化已经验证完成。
+维护者：推送到 `main` 会自动排队发布补丁版本（例如 `0.1.2` → `0.1.3`）。连续快速推送可能合并处理：过时的排队任务跳过，最新可执行任务包含累计改动。需要手动选择次版本时，执行 `npm version minor --no-git-tag-version`，再正常提交并推送；显式指定的更高稳定版本（例如 `0.2.0`）会保留，下一次发布为 `0.2.1`。工作流负责验证、版本提交和标签、带 provenance 的发布、市场索引更新和 GitHub Release。认证前提与失败恢复请参阅[发布指南（英文）](https://github.com/yiliang114/dsh-session-deck/blob/main/docs/releasing.md)。
 
 ## 会话状态与边界
 

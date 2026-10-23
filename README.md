@@ -85,7 +85,7 @@ https://raw.githubusercontent.com/yiliang114/dsh-session-deck/main/market-index.
 
 This is a **user-added custom market source**, not an official DSH listing. Publishing to npm does not automatically add the plugin to an official DSH market.
 
-Maintainers: the intended automatic release process queues pushes to `main`, tests the latest `main` after acquiring the release queue, and increments the patch version (for example, `0.1.2` → `0.1.3`). To choose a minor version, run `npm version minor --no-git-tag-version`, then commit and push to `main` normally: an explicit greater stable version such as `0.2.0` is preserved, and the following release becomes `0.2.1`. The workflow owns tags, publication with provenance, registry verification, market updates, and GitHub Releases. See the [release guide](https://github.com/yiliang114/dsh-session-deck/blob/main/docs/releasing.md) for authentication prerequisites and recovery; this description is not evidence that the new automation has been verified.
+Maintainers: pushing to `main` queues an automatic patch release (for example, `0.1.2` → `0.1.3`). Rapid pushes can be combined: stale queued runs skip, and the latest eligible run includes the accumulated changes. To choose a minor version, run `npm version minor --no-git-tag-version`, then commit and push normally; an explicit greater stable version such as `0.2.0` is preserved, and the following release becomes `0.2.1`. The workflow runs verification, creates the version commit and tag, publishes with provenance, and updates the market index and GitHub Release. See the [release guide](https://github.com/yiliang114/dsh-session-deck/blob/main/docs/releasing.md) for authentication prerequisites and recovery.
 
 ## How session status works
 

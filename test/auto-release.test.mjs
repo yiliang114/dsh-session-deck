@@ -4,7 +4,8 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
 import {
-  assertFreshMain, assertPublishedIdentity, checkPendingReservation, childEnvironment, createRunner, latestStable,
+  assertFreshMain, assertPublishedIdentity, assertReservationOnMain, assertResumeIdentity, canReleaseTrigger,
+  checkPendingReservation, childEnvironment, createRunner, latestStable,
   nextVersion, onlyMarketCommits, pushMarket, registryVersion, reserve,
 } from '../scripts/auto-release.mjs'
 
@@ -47,6 +48,12 @@ test('already published release is reusable only with exact local integrity and 
   assert.doesNotThrow(() => assertPublishedIdentity({ ...published, gitHead: undefined }, pkg, 'abc', 'sha512-exact'))
 })
 
+test('reserved publication requires the genuine matching workflow source identity', () => {
+  assert.doesNotThrow(() => assertResumeIdentity('reserved', 'reserved', 'v0.1.3'))
+  assert.throws(() => assertResumeIdentity('reserved', 'newer-human', 'v0.1.3'), /--ref v0.1.3/)
+  assert.equal(childEnvironment({ GITHUB_SHA: 'genuine-trigger' }).GITHUB_SHA, 'genuine-trigger')
+})
+
 test('package scripts receive no release credentials', () => {
   assert.deepEqual(childEnvironment({ PATH: '/bin', NPM_PUBLISH_TOKEN: 'x', NODE_AUTH_TOKEN: 'x', NPM_TOKEN: 'x', GH_TOKEN: 'x', GITHUB_TOKEN: 'x' }), { PATH: '/bin', NODE_AUTH_TOKEN: '' })
 })
@@ -84,6 +91,19 @@ function fixture(t) {
   return { run, human, checkout, humanPath, commit, sha: run('git', ['rev-parse', 'HEAD']).stdout }
 }
 
+test('workflow source gate allows only bot market updates after its triggering source', t => {
+  const { run, checkout, commit, sha } = fixture(t)
+  assert.equal(canReleaseTrigger(run, sha, sha), true)
+  commit(run, checkout, 'market-index.json', 'release\n', 'chore(release): market v0.1.3')
+  const marketSha = run('git', ['rev-parse', 'HEAD']).stdout
+  assert.equal(canReleaseTrigger(run, sha, marketSha), true)
+  commit(run, checkout, 'source.txt', 'new code\n', 'human source update')
+  const sourceSha = run('git', ['rev-parse', 'HEAD']).stdout
+  assert.equal(canReleaseTrigger(run, sha, sourceSha), false)
+  assert.equal(canReleaseTrigger(run, sourceSha, sourceSha), true)
+  assert.equal(canReleaseTrigger(run, sourceSha, marketSha), false)
+})
+
 test('reservation atomically pushes main and tag, including an unchanged manual version', t => {
   const { run, sha } = fixture(t)
   const reserved = reserve(run, '0.1.2', sha)
@@ -97,6 +117,22 @@ test('stale main fails before reservation', t => {
   commit(human, humanPath, 'human.txt', 'new\n', 'human change')
   human('git', ['push', 'origin', 'main'])
   assert.throws(() => assertFreshMain(run, sha), /main moved/)
+})
+
+test('reserved publication permits newer main descendants but rejects rewritten history', t => {
+  const { run, human, humanPath, commit, sha } = fixture(t)
+  const reserved = reserve(run, '0.1.2', sha)
+  assert.doesNotThrow(() => assertReservationOnMain(run, reserved))
+  human('git', ['pull', '--ff-only', 'origin', 'main'])
+  commit(human, humanPath, 'human.txt', 'new\n', 'human change after reservation')
+  human('git', ['push', 'origin', 'main'])
+  assert.doesNotThrow(() => assertReservationOnMain(run, reserved))
+  assert.equal(run('git', ['rev-parse', 'HEAD']).stdout, reserved)
+  // Rewrite only the disposable local bare repository to simulate lost ancestry.
+  human('git', ['checkout', '-b', 'rewritten', sha])
+  commit(human, humanPath, 'replacement.txt', 'replacement\n', 'rewrite main history')
+  human('git', ['push', '--force', 'origin', 'HEAD:refs/heads/main'])
+  assert.throws(() => assertReservationOnMain(run, reserved), /no longer on main/)
 })
 
 test('human movement between fetch and atomic push leaves no remote orphan tag', t => {
@@ -134,7 +170,7 @@ test('pending reservation survives a newer manual minor bump and requires exact 
   const current = run('git', ['rev-parse', 'HEAD']).stdout
   const github = completed => (command, args, options) => command === 'gh'
     ? { ok: completed, stdout: '', stderr: '' } : run(command, args, options)
-  assert.throws(() => checkPendingReservation(github(false), current), /resume_tag=v0.1.2/)
+  assert.throws(() => checkPendingReservation(github(false), current), /--ref v0.1.2/)
   assert.equal(checkPendingReservation(github(false), current, 'v0.1.2'), 'v0.1.2')
   assert.throws(() => checkPendingReservation(github(false), current, 'v0.1.1'), /most recent reservation/)
   assert.equal(checkPendingReservation(github(true), current), 'v0.1.2')

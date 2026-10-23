@@ -4,11 +4,6 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
-    inputs:
-      resume_tag:
-        description: 'Reserved vX.Y.Z tag to finish after main moved; rerun without it afterward to ship newer changes'
-        required: false
-        type: string
 
 permissions:
   contents: write
@@ -20,7 +15,7 @@ concurrency:
 
 jobs:
   publish:
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && startsWith(github.ref, 'refs/tags/v'))
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -45,13 +40,15 @@ jobs:
       - name: Verify and reserve release
         env:
           GH_TOKEN: ${{ github.token }}
-          RESUME_TAG: ${{ inputs.resume_tag }}
+          RESUME_TAG: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
         run: node "$RUNNER_TEMP/release-tools/auto-release.mjs" prepare
       - name: Publish reserved release and verify public package
+        if: env.RELEASE_SKIPPED != 'true'
         env:
           NPM_PUBLISH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: node "$RUNNER_TEMP/release-tools/auto-release.mjs" publish
       - name: Update market and GitHub release
+        if: env.RELEASE_SKIPPED != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: node "$RUNNER_TEMP/release-tools/auto-release.mjs" finalize

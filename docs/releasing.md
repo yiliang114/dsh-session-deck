@@ -8,7 +8,9 @@ Track the actual result using [Release CI](https://github.com/yiliang114/dsh-ses
 
 ## Automatic releases from main
 
-Push reviewed changes to `main` normally. The [publish workflow](../.github/workflows/publish.yml) serializes release work and fetches the latest `main` after entering the release queue. A queued run therefore uses the latest branch state, which can include changes pushed while it waited.
+Push reviewed changes to `main` normally. The [publish workflow](../.github/workflows/publish.yml) serializes releases and checks the current branch when the job starts. If newer human commits have arrived, an outdated queued run skips; the latest eligible run releases the accumulated changes. Bot market-index commits alone do not make a run stale.
+
+GitHub signs the workflow's original event SHA. npm provenance keeps that SHA as the build input; the automated version commit records the generated version separately. Never override `GITHUB_SHA` to claim a different input: npm rejects a provenance digest that disagrees with GitHub's certificate.
 
 The release sequence is:
 
@@ -92,11 +94,13 @@ npm view @yiliang114/dsh-session-deck@VERSION name version dist.integrity --regi
 
 npm can accept an upload while still processing the release. If registry verification fails, inspect the package and any staged-release status before retrying. Do not blindly republish: npm versions cannot be overwritten. Never delete or move a published release tag to point at different source.
 
-The recovery entry point is **Run workflow** for the publish workflow, selecting **main**:
+Use **Run workflow** for the publish workflow:
 
-- If the failed release's reserved commit is still the branch head, a retry can resume that same release.
-- If newer human commits have reached `main`, an ordinary run must stop rather than attach changed code to the reserved version. Dispatch with `resume_tag` set to the original tag, for example `v0.2.0`, to finish the original reserved source first.
-- After that recovery succeeds, dispatch again on `main` without `resume_tag` to release the newer changes.
+- If the failed release's reserved commit is still the branch head, dispatch on **main** to resume it.
+- If newer human commits have reached `main`, select the reserved **tag** as the workflow ref so GitHub signs that original source. For example: `gh workflow run publish.yml --ref v0.2.0`.
+- After recovery succeeds, dispatch again on **main** to release the newer changes.
+
+Tag recovery is supported by reservations containing this corrected workflow. A tag retains its own workflow definition; older tags cannot gain recovery support from changes on `main`.
 
 Check which steps already completed before retrying, including registry publication, market update, and GitHub Release creation. A failed post-publication step calls for finishing that release, not inventing a replacement artifact with the same version. Inspect the workflow's actual result before treating recovery as complete.
 
