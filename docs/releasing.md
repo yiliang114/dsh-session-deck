@@ -63,9 +63,11 @@ When screenshots need updating, capture the actual English interface on unpatche
 
 ## Configure npm authentication
 
-Authentication must be configured before publishing; committing a workflow does not authorize it. As of **2026-10-23**, the repository has a temporary `NPM_TOKEN` secret that expires on **2026-10-30**. The npm trusted publisher binding is still pending the account owner's security-key verification. Until that binding is configured, expiry or revocation of the temporary token blocks new releases.
+The workflow authenticates exclusively through **npm Trusted Publishing (OIDC)**. GitHub Actions supplies a signed, short-lived identity token; the npm CLI exchanges it for a short-lived publishing credential. The workflow does not read `NPM_TOKEN` or fall back to a long-lived npm token.
 
-For tokenless publishing, open the npm package's **Settings → Trusted Publisher** configuration and authorize GitHub Actions with:
+Configuring this trust relationship is a **one-time account setup**. npm may ask the account owner to verify a security key when saving the configuration. That is separate from ordinary releases: after setup, each push publishes unattended, without an npm approval click.
+
+Open the npm package's **Settings → Trusted Publisher** configuration and authorize GitHub Actions with:
 
 | Field | Value |
 | --- | --- |
@@ -74,11 +76,17 @@ For tokenless publishing, open the npm package's **Settings → Trusted Publishe
 | Workflow filename | `publish.yml` |
 | Environment | Leave empty; the workflow does not declare an environment. |
 
-Use the workflow filename, not its repository path. Set **Allow npm publish** to **true** so the workflow can publish directly; **Allow npm dist-tag** is not needed. Follow the current [npm trusted publishing documentation](https://docs.npmjs.com/trusted-publishers/) for additional verification and eligibility requirements. These are required npm-side settings, not a claim that the binding is already configured.
+Use the workflow filename, not its repository path. Set **Allow npm publish** to **true** so the workflow publishes directly; **Allow npm dist-tag** is not needed. A stage-only publisher requires human approval for each staged release and does not meet this repository's unattended-release policy. Do not add a GitHub environment with required reviewers to this workflow. Follow the current [npm trusted publishing documentation](https://docs.npmjs.com/trusted-publishers/) for account verification and eligibility requirements.
 
-The publishing job requires Node.js **24**, npm **11.5.1 or newer**, and `id-token: write` for OIDC. After configuring the trusted publisher, remove the repository `NPM_TOKEN` secret and revoke the temporary token so npm can use OIDC for subsequent publications. Verify a successful tokenless release in Release CI.
+The publishing job uses a GitHub-hosted runner, Node.js **24**, npm **11.5.1 or newer**, and `id-token: write`. Keep npm's OIDC request environment available to the publishing process. Never store, print, or manually generate its short-lived tokens. The workflow's configuration alone does not establish the npm-side trust relationship.
 
-If a temporary token is still needed, it must be a short-lived [granular access token](https://docs.npmjs.com/creating-and-viewing-access-tokens/) with **Read and write** permission for this package and **Bypass two-factor authentication** enabled for unattended CI publication. Store it only as the repository Actions secret `NPM_TOKEN`. Browser login alone does not authenticate GitHub Actions or the local npm CLI.
+When migrating from the previous bootstrap token:
+
+1. Save the trusted publisher configuration on npm, including any one-time security-key verification.
+2. Run an actual new release with this OIDC-only workflow. A successful `npm whoami`, a provenance badge, or a retry that skips an already published version does not prove OIDC publishing works. Newly created trusted publishers must complete their first successful publish within **two days**, according to npm's current policy.
+3. After that release succeeds, delete the repository Actions secret `NPM_TOKEN` and revoke only the dedicated `dsh-session-deck-ci-bootstrap` npm token. Do not revoke unrelated account tokens.
+
+The former bootstrap token expires on **2026-10-30**. This workflow never uses it, even if the old secret has not yet been removed. If trust is missing or mismatched, repair the npm publisher configuration rather than restoring a token fallback.
 
 Publication uses `--provenance` and a public package. [npm provenance](https://docs.npmjs.com/generating-provenance-statements/) also requires a public GitHub repository matching the package's `repository.url`; keep it set to `git+https://github.com/yiliang114/dsh-session-deck.git`.
 

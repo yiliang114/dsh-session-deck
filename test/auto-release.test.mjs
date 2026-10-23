@@ -6,7 +6,7 @@ import test from 'node:test'
 import {
   assertFreshMain, assertPublishedIdentity, assertReservationOnMain, assertResumeIdentity, canReleaseTrigger,
   checkPendingReservation, childEnvironment, createRunner, latestStable,
-  nextVersion, onlyMarketCommits, pushMarket, registryVersion, reserve,
+  nextVersion, onlyMarketCommits, publishWithOidc, pushMarket, registryVersion, reserve,
 } from '../scripts/auto-release.mjs'
 
 test('version policy patches equality, preserves manual stable bumps, rejects downgrades and prereleases', () => {
@@ -56,6 +56,53 @@ test('reserved publication requires the genuine matching workflow source identit
 
 test('package scripts receive no release credentials', () => {
   assert.deepEqual(childEnvironment({ PATH: '/bin', NPM_PUBLISH_TOKEN: 'x', NODE_AUTH_TOKEN: 'x', NPM_TOKEN: 'x', GH_TOKEN: 'x', GITHUB_TOKEN: 'x' }), { PATH: '/bin', NODE_AUTH_TOKEN: '' })
+})
+
+const oidcEnvironment = {
+  GITHUB_ACTIONS: 'true',
+  GITHUB_SHA: 'genuine-trigger',
+  ACTIONS_ID_TOKEN_REQUEST_URL: 'https://oidc.example.test/token',
+  ACTIONS_ID_TOKEN_REQUEST_TOKEN: 'short-lived-request-token',
+}
+
+test('npm publication passes OIDC identity but no legacy credentials to its child', () => {
+  const env = {
+    ...process.env, ...oidcEnvironment,
+    NPM_PUBLISH_TOKEN: 'old-publish-token', NPM_TOKEN: 'old-npm-token',
+    NODE_AUTH_TOKEN: 'old-node-token', GH_TOKEN: 'github-token', GITHUB_TOKEN: 'github-token',
+  }
+  const run = createRunner({ env })
+  let calls = 0
+  const result = publishWithOidc((command, args, options) => {
+    calls++
+    assert.equal(command, 'npm')
+    assert.deepEqual(args, ['publish', '--access', 'public', '--provenance', '--ignore-scripts'])
+    assert.equal(options?.credentials, undefined)
+    // Substitute a harmless executable for npm, retaining the production runner
+    // and publication options so we inspect the environment of a real child.
+    return run(process.execPath, ['-e', 'console.log(JSON.stringify(process.env))'], { ...options, quiet: true })
+  }, env)
+  assert.equal(calls, 1)
+  const child = JSON.parse(result.stdout)
+  for (const key of ['NPM_PUBLISH_TOKEN', 'NPM_TOKEN', 'GH_TOKEN', 'GITHUB_TOKEN']) {
+    assert.equal(Object.hasOwn(child, key), false, `${key} must not reach npm publish`)
+  }
+  assert.equal(child.NODE_AUTH_TOKEN, '') // setup-node's .npmrc placeholder must resolve.
+  for (const [key, value] of Object.entries(oidcEnvironment)) assert.equal(child[key], value)
+  assert.equal(env.NODE_AUTH_TOKEN, 'old-node-token')
+})
+
+test('new publication requires GitHub Actions OIDC before invoking npm', () => {
+  for (const key of ['GITHUB_ACTIONS', 'ACTIONS_ID_TOKEN_REQUEST_URL', 'ACTIONS_ID_TOKEN_REQUEST_TOKEN']) {
+    for (const value of [undefined, '']) {
+      let called = false
+      assert.throws(() => publishWithOidc(() => { called = true }, { ...oidcEnvironment, [key]: value }), /Trusted publishing requires/)
+      assert.equal(called, false)
+    }
+  }
+  assert.throws(() => publishWithOidc(() => assert.fail('must not publish'), {
+    ...oidcEnvironment, GITHUB_ACTIONS: 'false',
+  }), /requires GitHub Actions/)
 })
 
 function fixture(t) {

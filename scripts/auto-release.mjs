@@ -253,7 +253,17 @@ function packIntegrity(run) {
   return packed.integrity
 }
 
-async function publish(run, npmToken) {
+export function publishWithOidc(run, env = process.env) {
+  assert.equal(env.GITHUB_ACTIONS, 'true', 'Trusted publishing requires GitHub Actions')
+  for (const key of ['ACTIONS_ID_TOKEN_REQUEST_URL', 'ACTIONS_ID_TOKEN_REQUEST_TOKEN']) {
+    assert.ok(env[key]?.trim(), `Trusted publishing requires ${key}; enable id-token: write`)
+  }
+  // Keep GITHUB_SHA unchanged: npm checks it against the OIDC certificate.
+  // A fresh reservation's version bump is a build transformation of that source.
+  return run('npm', ['publish', '--access', 'public', '--provenance', '--ignore-scripts'])
+}
+
+async function publish(run) {
   const { pkg, sha } = releaseContext(run)
   const integrity = packIntegrity(run)
   const existing = await registryVersion(pkg.name, pkg.version)
@@ -263,11 +273,7 @@ async function publish(run, npmToken) {
   } else {
     assertReservationOnMain(run, sha)
     if (process.env.RELEASE_REUSED === 'true') assertResumeIdentity(sha, process.env.GITHUB_SHA, `v${pkg.version}`)
-    // Keep GITHUB_SHA unchanged: npm checks it against the OIDC certificate.
-    // A fresh reservation's version bump is a build transformation of that source.
-    const credentials = npmToken ? { NODE_AUTH_TOKEN: npmToken } : {}
-    // npm lifecycle scripts are disabled; only this child receives npm credentials.
-    run('npm', ['publish', '--access', 'public', '--provenance', '--ignore-scripts'], { credentials })
+    publishWithOidc(run)
   }
   const published = await verifyPublished(pkg, { expectedGitHead: sha })
   assertPublishedIdentity(published, pkg, sha, integrity)
@@ -316,14 +322,12 @@ async function finalize(run, ghToken) {
 }
 
 export async function main() {
-  const npmToken = process.env.NPM_PUBLISH_TOKEN
   const ghToken = process.env.GH_TOKEN
-  delete process.env.NPM_PUBLISH_TOKEN
   delete process.env.GH_TOKEN
   const run = createRunner()
   const stage = process.argv[2]
   if (stage === 'prepare') await prepare(run, ghToken)
-  else if (stage === 'publish') await publish(run, npmToken)
+  else if (stage === 'publish') await publish(run)
   else if (stage === 'finalize') await finalize(run, ghToken)
   else throw new Error('Usage: node scripts/auto-release.mjs prepare|publish|finalize')
 }

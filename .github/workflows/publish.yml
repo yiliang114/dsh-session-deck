@@ -44,8 +44,6 @@ jobs:
         run: node "$RUNNER_TEMP/release-tools/auto-release.mjs" prepare
       - name: Publish reserved release and verify public package
         if: env.RELEASE_SKIPPED != 'true'
-        env:
-          NPM_PUBLISH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: node "$RUNNER_TEMP/release-tools/auto-release.mjs" publish
       - name: Update market and GitHub release
         if: env.RELEASE_SKIPPED != 'true'
