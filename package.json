@@ -1,1 +1,43 @@
-{"name":"dsh-session-activity","version":"0.1.0","private":true,"type":"module","description":"Compact session activity in the native DSH sidebar","engines":{"node":">=22","dsh":"0.2.1-rc.2"},"exports":{".":"./src/host.mjs","./client":"./lib/client.js","./cordis.patch.yml":"./cordis.patch.yml","./package.json":"./package.json"},"files":["src","lib","scripts","cordis.patch.yml","README.md"],"scripts":{"build":"node --check src/host.mjs && node --check lib/client.js","test":"node --test test/*.test.mjs"},"dsh":{"bundle":{"patch":"./cordis.patch.yml"},"client":{"platform":"web","inject":["@deepseek-ai/dsh-client-ui-sidebar","@deepseek-ai/dsh-client-ui-session","@deepseek-ai/dsh-client-ui-workspace"]}}}
+{
+  "name": "dsh-session-activity",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Compact session activity in the native DSH sidebar",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yiliang114/dsh-session-deck.git"
+  },
+  "homepage": "https://github.com/yiliang114/dsh-session-deck#readme",
+  "bugs": {
+    "url": "https://github.com/yiliang114/dsh-session-deck/issues"
+  },
+  "engines": {
+    "node": ">=22",
+    "dsh": "0.2.1-rc.2"
+  },
+  "exports": {
+    ".": "./src/host.mjs",
+    "./client": "./lib/client.js",
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
+  },
+  "files": ["src", "lib", "scripts/patch-sidebar-before.mjs", "cordis.patch.yml", "README.md"],
+  "scripts": {
+    "build": "node --check src/host.mjs && node --check lib/client.js && node --check scripts/patch-sidebar-before.mjs && node --check scripts/check-package.mjs",
+    "test": "node --test test/*.test.mjs",
+    "check:package": "node scripts/check-package.mjs",
+    "verify": "npm run build && npm test && npm run check:package"
+  },
+  "dsh": {
+    "bundle": {"patch": "./cordis.patch.yml"},
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-sidebar",
+        "@deepseek-ai/dsh-client-ui-session",
+        "@deepseek-ai/dsh-client-ui-workspace"
+      ]
+    }
+  }
+}
