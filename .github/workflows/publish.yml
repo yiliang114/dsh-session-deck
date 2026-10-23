@@ -1,0 +1,52 @@
+name: Publish npm
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: npm-publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          registry-url: https://registry.npmjs.org
+      - name: Check release version and npm CLI
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict'
+          import { readFileSync } from 'node:fs'
+          import { execFileSync } from 'node:child_process'
+          const pkg = JSON.parse(readFileSync('package.json', 'utf8'))
+          assert.equal(process.env.RELEASE_TAG, `v${pkg.version}`)
+          assert.ok(!pkg.private, 'Package is private')
+          assert.ok(pkg.license, 'Choose a license before publishing')
+          const [major, minor, patch] = execFileSync('npm', ['--version'], { encoding: 'utf8' }).trim().split('.').map(Number)
+          assert.ok(major > 11 || (major === 11 && (minor > 5 || (minor === 5 && patch >= 1))), 'Trusted publishing requires npm >=11.5.1')
+          NODE
+      - run: npm run verify
+      - name: Publish with npm trusted publishing
+        run: npm publish --access public --ignore-scripts
+      - name: Verify published version
+        run: |
+          PACKAGE=$(node -p "const p = require('./package.json'); p.name + '@' + p.version")
+          npm view "$PACKAGE" name version dist.integrity --registry=https://registry.npmjs.org

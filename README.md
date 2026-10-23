@@ -2,7 +2,7 @@
 
 在 DeepSeek Harness（DSH）原生侧栏中，集中查看跨工作区的会话、运行状态、未读结果与收藏。
 
-项目尚未发布到 npm，当前保留 `private: true` 发布保护。仓库名为 `dsh-session-deck`；为兼容已有安装和浏览器数据，内部包名、插件 ID 和存储键暂时保留 `dsh-session-activity`。
+npm 包名为 **`@yiliang114/dsh-session-deck`**，使用 MIT 许可证。无 scope 的 `dsh-session-activity` 与 `dsh-session-deck` 是其他作者的包，请勿误装。浏览器存储键沿用早期本地版本的 `dsh-session-activity.*`，以保留当前视图和未读状态。
 
 这是使用 DSH 原生插件机制的第三方插件，不是 DSH 官方内置组件。**安装使用不要求发布 npm**：本地开发可使用 `link:`，分发可使用 npm tarball；发布 npm 后才可通过注册表包名安装。
 
@@ -32,6 +32,16 @@
 
 本插件没有额外 npm 依赖，仓库已包含可直接加载的客户端文件。
 
+## npm 安装
+
+首次发布完成后，可执行：
+
+```sh
+dsh plugin --profile web add @yiliang114/dsh-session-deck@0.1.0 --ignore-scripts
+```
+
+如果此前安装了本仓库的旧本地包 `dsh-session-activity`，先在插件管理中停用并移除该旧包，再安装新包，避免两个实例同时接管侧栏。浏览器存储不需要清除。
+
 ## 本地安装
 
 在仓库根目录执行：
@@ -57,29 +67,69 @@ npm run verify
 npm pack --ignore-scripts
 ```
 
-当前版本生成 `dsh-session-activity-0.1.0.tgz`。把文件复制到目标机器后，使用其绝对路径安装：
+当前版本生成 `yiliang114-dsh-session-deck-0.1.0.tgz`。把文件复制到目标机器后，使用其绝对路径安装：
 
 ```sh
-dsh plugin --profile web add /absolute/path/dsh-session-activity-0.1.0.tgz --ignore-scripts
+dsh plugin --profile web add /absolute/path/yiliang114-dsh-session-deck-0.1.0.tgz --ignore-scripts
 ```
 
 tarball 包含宿主入口、已就绪的客户端、Cordis 配置、README 和可选补丁脚本，不需要构建依赖，也不会自动执行宿主补丁。安装后刷新 GUI。与 `link:` 不同，tarball 安装不依赖原仓库目录持续存在。
 
-### 准备公开发布
+### 维护者发布流程
 
-1. 确认仓库可以公开，选择许可证、添加 `LICENSE` 并同步 `package.json` 的 `license` 字段。公开源码和授予开源使用权限是两件事。
-2. 确认 npm 包名的可用性和发布权限。当前包名为 `dsh-session-activity`，尚未确认可用；若更名，需同步 Cordis 配置和客户端中的包标识，不能只改仓库名。
-3. 移除 `package.json` 的 `private: true`，更新版本号；保留实际验证过的 `engines.dsh` 兼容范围。
-4. 运行 `npm run verify`、`npm pack --dry-run`，并用 tarball 在目标 DSH 版本上验证工作区/活动/收藏切换、未读状态和会话菜单。
-5. 通过有权限的 npm 账号执行 `npm publish --access public`，再验证安装。本文中的发布命令是维护者操作说明，当前 CI 不执行发布。
+普通 CI 只验证；[发布工作流](.github/workflows/publish.yml) 在推送 `v*` tag 时发布 npm，并要求 tag 与包版本精确一致。它使用 Node.js 24、npm 11.5.1 或以上以及 OIDC，不保存 npm token。手动重试工作流时必须选择版本 tag，选择分支不会发布。
 
-首次发布成功后，用户才可以使用下面的命令（当前不能假定注册表已有此包）：
+首次创建包需要已获权限的 npm 登录身份，在已审查的发布提交上执行：
 
 ```sh
-dsh plugin --profile web add dsh-session-activity@0.1.0 --ignore-scripts
+npm run verify
+npm publish --access public --ignore-scripts
+npm view @yiliang114/dsh-session-deck@0.1.0 version --registry=https://registry.npmjs.org
 ```
 
-如果后续采用自动发布，建议单独添加发布工作流，由版本 tag 或 GitHub Release 触发，验证 tag 与包版本一致后再发布。优先配置 npm Trusted Publishing（OIDC），将授权限定到本仓库的发布工作流；发布 job 才需要 `id-token: write`，并应使用 npm 当时要求的 Node.js/npm 版本。首次创建包及 Trusted Publisher 绑定按 npm 的当前流程完成。普通 PR CI 不应拥有 npm 凭据或发布权限。
+首次发布后，在 npm 包 Settings 的 Trusted Publisher 中配置 GitHub Actions：
+
+| 字段 | 值 |
+| --- | --- |
+| Organization or user | `yiliang114` |
+| Repository | `dsh-session-deck` |
+| Workflow filename | `publish.yml` |
+| Environment | 留空（当前 workflow 未使用 environment） |
+
+允许该绑定执行直接 `npm publish`。配置只写 workflow 文件名，不填写 `.github/workflows/` 路径。此 npm 端授权不会因合并工作流而自动生效；具体界面和首次验证时限以 [npm Trusted Publishing 文档](https://docs.npmjs.com/trusted-publishers/) 为准。
+
+后续发布步骤：更新包版本并通过 PR 合并到 `main`，验证目标 DSH 上的交互，然后为该提交创建同版本 tag 并推送。例如包版本更新到 `0.1.1` 后：
+
+```sh
+git tag v0.1.1
+git push origin v0.1.1
+```
+
+npm 版本不能覆盖。已经从本机发布的首次版本不要再次通过工作流发布；后续 tag 必须对应新版本。
+
+### DSH 自定义插件市场
+
+当前 DSH **没有官方统一插件市场**；发现页展示用户自己添加的索引源，发布 npm 不会自动出现在发现页中。参见 [DSH 官方说明](https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/experimental/plugin-market-bundle/README.md)。
+
+本仓库提供 [市场索引](market-index.json)。仓库公开且索引包含已发布版本后，用户可以：
+
+1. 在 DSH **插件 → 实验性插件 → 更多** 中启用 **自定义插件市场**。
+2. 打开 **发现 → 添加索引源**。
+3. 添加以下直接 JSON 地址，查找 **DSH Session Deck** 并安装：
+
+```text
+https://raw.githubusercontent.com/yiliang114/dsh-session-deck/main/market-index.json
+```
+
+索引使用格式版本 1，标明适配的 DSH 版本和 npm 安装源。不能使用会重定向的 GitHub 文件预览地址。索引被其他社区市场维护者收录是独立流程，没有官方自动审核或自动收录步骤。
+
+每次 npm 发布成功后，在对应版本的源码上运行以下命令，再将索引变更提交到 `main`：
+
+```sh
+npm run market:update
+```
+
+该脚本从 npm 读取真实发布时间和包元数据，并保留旧版本；查询不到目标版本时会失败，不会把未发布版本写入索引。发布工作流不会自动推送源码。索引为空时发现页不会展示本插件。
 
 ## 可选：将切换条放到列表上方
 
@@ -155,7 +205,7 @@ DSH 重装或升级可能覆盖补丁。升级后先检查兼容性；不要绕�
 
 **如何停用？**
 
-在 DSH 插件管理中停用或移除 `dsh-session-activity`。如果应用过侧栏补丁，可按上面的恢复步骤单独撤销；停用插件不会自动恢复宿主文件，也不会主动清除浏览器存储。
+在 DSH 插件管理中停用或移除 `@yiliang114/dsh-session-deck`。如果应用过侧栏补丁，可按上面的恢复步骤单独撤销；停用插件不会自动恢复宿主文件，也不会主动清除浏览器存储。
 
 ## 开发与验证
 
@@ -191,4 +241,4 @@ CI 校验的是插件源码与打包清单，不代表已经在多个 DSH 版本
 
 ## 项目状态与许可证
 
-目前用于私有开发，包配置保留 `private: true`。尚未选择开源许可证，仓库暂不包含 `LICENSE`；公开发布前需先明确授权条款。
+本项目采用 [MIT 许可证](LICENSE)，由社区维护，与 DSH 官方内置插件分开发布。

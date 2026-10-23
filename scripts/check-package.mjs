@@ -13,6 +13,7 @@ const required = [
   ...Object.values(manifest.exports),
   manifest.dsh.bundle.patch,
   'README.md',
+  'LICENSE',
   'scripts/patch-sidebar-before.mjs',
 ]
 for (const path of required) {
