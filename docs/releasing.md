@@ -2,15 +2,42 @@
 
 [User guide](../README.md) · [中文使用指南](../README.zh-CN.md)
 
-This guide is for maintainers of **`@yiliang114/dsh-session-deck`**. The current source version is **0.1.2** and the supported DSH version is exactly **0.2.1-rc.2**. A release is complete only when its tagged workflow succeeds and the exact npm version can be downloaded and installed.
+This guide describes automatic releases for **`@yiliang114/dsh-session-deck`**. The supported DSH version remains exactly **0.2.1-rc.2**. A release is complete only after its registry version is verified, the custom market index is updated, and its GitHub Release is created.
 
-The [publish workflow](../.github/workflows/publish.yml) supports an initial tagged publication using a repository `NPM_TOKEN` secret, then tokenless npm trusted publishing after the package exists. Authentication must be configured before publishing; committing the workflow does not authorize it.
+Track the actual result using [Release CI](https://github.com/yiliang114/dsh-session-deck/actions/workflows/publish.yml), the [npm package](https://www.npmjs.com/package/@yiliang114/dsh-session-deck), and the [latest GitHub Release](https://github.com/yiliang114/dsh-session-deck/releases/latest).
 
-Version **0.1.2** is published through the [successful release workflow](https://github.com/yiliang114/dsh-session-deck/actions/runs/39979809316), with its registry tarball integrity and isolated installation verified. The bootstrap procedure below applies when creating a new package; do not recreate or republish existing version tags.
+## Automatic releases from main
+
+Push reviewed changes to `main` normally. The [publish workflow](../.github/workflows/publish.yml) serializes release work and fetches the latest `main` after entering the release queue. A queued run therefore uses the latest branch state, which can include changes pushed while it waited.
+
+The release sequence is:
+
+1. Check the latest `main` and run `npm run verify` before reserving a release.
+2. Select the next stable version. Normally increment the patch number: `0.1.2` becomes `0.1.3`. Preserve an explicitly selected stable version greater than the previous release, such as `0.2.0`; the following ordinary release becomes `0.2.1`.
+3. Reserve that version with the release commit and matching `vX.Y.Z` tag, so a retry retains the original release source.
+4. Publish the public npm package with provenance and verify its exact version in the public registry.
+5. Update the custom market index using verified registry metadata and create the GitHub Release.
+
+The workflow uses `GITHUB_TOKEN` for its repository writes. Those bot commits do not trigger another push workflow, preventing a release loop. A manual dispatch with only completed market-index bot commits remaining reuses the same version and skips npm publication after verifying the existing artifact, rather than incrementing again. Repository settings and branch protection must allow the workflow's required writes.
+
+### Manually choose a minor version
+
+On an up-to-date `main` checkout, make the desired changes and run:
+
+```sh
+npm version minor --no-git-tag-version
+npm run verify
+git add package.json
+# Stage any other intended changes as usual.
+git commit -m "chore: prepare minor release"
+git push origin main
+```
+
+For example, this changes `0.1.3` to `0.2.0`. The automatic workflow preserves that explicit greater stable version, and the next normal push releases `0.2.1`. The repository currently has no lockfile. If one is introduced, add lockfile version synchronization to the release script first; automatic reservation otherwise stops with an explicit error. The workflow creates the release tag; maintainers do not manually tag ordinary releases.
 
 ## Verify a release candidate
 
-On the reviewed release commit:
+Before pushing reviewed changes:
 
 ```sh
 npm run verify
@@ -19,7 +46,7 @@ npm pack --ignore-scripts
 
 `verify` runs JavaScript syntax checks, Node.js tests, and a dry-run package-content check. The repository has no npm dependencies and does not need `npm install`. The tarball includes the host entry, client bundle, Cordis configuration, English and Chinese READMEs, license, and legacy sidebar patch script retained for rollback and backward compatibility. Repository screenshots and this release guide are not included in the current package allowlist.
 
-Before shipping, verify the following in the real DSH **0.2.1-rc.2** GUI:
+Before shipping UI changes, verify the following in the real DSH **0.2.1-rc.2** GUI:
 
 - Test both linked and tarball installations without a host patch. Confirm that the switcher appears immediately above the workspace region, below global panels, and that installed DSH files remain unchanged.
 - Exercise all three views, native pins, waiting/running/unread behavior, and nested known subagents. Confirm that Workspaces preserves the native workspace browser and its controls.
@@ -30,25 +57,13 @@ Before shipping, verify the following in the real DSH **0.2.1-rc.2** GUI:
 
 Automatic placement is a guarded DOM compatibility adapter using a React portal, not an official DSH API. Keep `engines.dsh` pinned to **0.2.1-rc.2**; rc.3 compatibility is unverified and unsupported. Automated checks alone do not establish host compatibility, and this checklist does not record completed verification.
 
-Recapture the README screenshots from the actual English interface on unpatched rc.2, showing automatic top placement. Use English, anonymized session titles and workspace names, omit browser chrome, and keep the existing filenames: [Activity](images/activity.png), [Favorites](images/favorites.png), and [Workspaces](images/workspaces.png).
+When screenshots need updating, capture the actual English interface on unpatched rc.2, showing automatic top placement. Use English, anonymized session titles and workspace names, omit browser chrome, and keep the existing filenames: [Activity](images/activity.png), [Favorites](images/favorites.png), and [Workspaces](images/workspaces.png).
 
-## Bootstrap the npm package
+## Configure npm authentication
 
-The first publication requires an npm account authorized to create packages under `@yiliang114`. In npm's website, create a short-lived [granular access token](https://docs.npmjs.com/creating-and-viewing-access-tokens/) with **Read and write** package permissions covering the `@yiliang114` scope (including the new package) and **Bypass two-factor authentication** enabled for unattended CI publication. Store it as the GitHub repository Actions secret **`NPM_TOKEN`**. Browser login alone does not authenticate GitHub Actions or the local npm CLI.
+Authentication must be configured before publishing; committing a workflow does not authorize it. As of **2026-10-23**, the repository has a temporary `NPM_TOKEN` secret that expires on **2026-10-30**. The npm trusted publisher binding is still pending the account owner's security-key verification. Until that binding is configured, expiry or revocation of the temporary token blocks new releases.
 
-Verify the reviewed candidate, merge it to `main`, then create and push **`v0.1.2`**. The workflow requires the tag to exactly match the package version, runs `npm run verify`, publishes, and queries the registry. Inspect the successful run and confirm:
-
-```sh
-npm view @yiliang114/dsh-session-deck@0.1.2 name version dist.integrity --registry=https://registry.npmjs.org
-```
-
-The publication uses `--provenance`, job permission `id-token: write`, and a public package. [npm provenance](https://docs.npmjs.com/generating-provenance-statements/) also requires a public GitHub repository matching the package's `repository.url`; keep it set to `git+https://github.com/yiliang114/dsh-session-deck.git`.
-
-Treat publication as complete only after registry verification succeeds. npm can accept an upload while processing the release, and its website may temporarily show a holding version. The [registry verifier](../scripts/verify-published.mjs) checks the exact public version without authentication and retries HTTP 404, 429, and 5xx responses up to 20 times, 15 seconds apart. Authentication errors and mismatched metadata fail immediately. If processing lasts beyond that window, inspect npm's package and staged-release status before retrying; do not publish the same version again just because verification failed. Do not add a market release entry before the actual version is verified. npm versions cannot be overwritten.
-
-## Configure GitHub Actions trusted publishing
-
-After the package exists, open its npm **Settings → Trusted Publisher** configuration and authorize GitHub Actions with:
+For tokenless publishing, open the npm package's **Settings → Trusted Publisher** configuration and authorize GitHub Actions with:
 
 | Field | Value |
 | --- | --- |
@@ -57,40 +72,41 @@ After the package exists, open its npm **Settings → Trusted Publisher** config
 | Workflow filename | `publish.yml` |
 | Environment | Leave empty; the workflow does not declare an environment. |
 
-Use the workflow filename, not its repository path. Enable **Allow npm publish** so this workflow can publish directly; **Allow npm dist-tag** is not needed. Follow the current [npm trusted publishing documentation](https://docs.npmjs.com/trusted-publishers/) for any additional verification and eligibility requirements. This is npm-side setup, not a setting inferred from the repository files.
+Use the workflow filename, not its repository path. Set **Allow npm publish** to **true** so the workflow can publish directly; **Allow npm dist-tag** is not needed. Follow the current [npm trusted publishing documentation](https://docs.npmjs.com/trusted-publishers/) for additional verification and eligibility requirements. These are required npm-side settings, not a claim that the binding is already configured.
 
-The workflow uses Node.js **24**, checks for npm **11.5.1 or newer**, and grants the publishing job `id-token: write` for OIDC. Only the `npm publish` step receives `NODE_AUTH_TOKEN` from the optional `NPM_TOKEN` secret. After configuring the trusted publisher, remove that repository secret and revoke the bootstrap token: an absent secret supplies an empty value, allowing npm to use OIDC for subsequent publications. Verification runs before publishing, followed by a registry query.
+The publishing job requires Node.js **24**, npm **11.5.1 or newer**, and `id-token: write` for OIDC. After configuring the trusted publisher, remove the repository `NPM_TOKEN` secret and revoke the temporary token so npm can use OIDC for subsequent publications. Verify a successful tokenless release in Release CI.
+
+If a temporary token is still needed, it must be a short-lived [granular access token](https://docs.npmjs.com/creating-and-viewing-access-tokens/) with **Read and write** permission for this package and **Bypass two-factor authentication** enabled for unattended CI publication. Store it only as the repository Actions secret `NPM_TOKEN`. Browser login alone does not authenticate GitHub Actions or the local npm CLI.
+
+Publication uses `--provenance` and a public package. [npm provenance](https://docs.npmjs.com/generating-provenance-statements/) also requires a public GitHub repository matching the package's `repository.url`; keep it set to `git+https://github.com/yiliang114/dsh-session-deck.git`.
 
 Ensure GitHub Actions and `actions/checkout` / `actions/setup-node` are allowed in repository settings. The [CI workflow](../.github/workflows/ci.yml) verifies Node.js 22 and 24; its `Verify (Node 22)` and `Verify (Node 24)` checks can be required by branch protection after their first run.
 
-## Publish subsequent versions
+## Verify and recover a release
 
-1. Update the package version, release-facing documentation, and compatibility declaration as appropriate. Validate changes and merge the reviewed release commit to `main`.
-2. Confirm the npm trusted publisher binding is in place and test the target DSH GUI.
-3. Create and push a tag that exactly matches the new package version. For example, **after publishing 0.1.2 and changing the next package version to 0.1.3**:
-
-   ```sh
-   git tag v0.1.3
-   git push origin v0.1.3
-   ```
-
-4. Inspect the publish workflow and confirm the registry version and integrity. A `v*` tag triggers publishing, and a mismatched tag fails. Manual workflow retries must select the version tag; selecting a branch skips the publishing job. Check whether publication already succeeded before retrying a failed post-publication step.
-
-The workflow does not bump versions, create tags, or push market-index changes back to the repository.
-
-## Update the custom market index
-
-The [market index](../market-index.json) lists the verified **0.1.2** release. It is maintained explicitly after publication; npm does not automatically update it or submit the plugin to an official DSH market.
-
-After registry verification, run from the source checkout for the published version:
+Inspect Release CI and the exact registry version. Replace `VERSION` with the reserved release version:
 
 ```sh
-npm run market:update
+npm view @yiliang114/dsh-session-deck@VERSION name version dist.integrity --registry=https://registry.npmjs.org
 ```
 
-The script queries npm for the exact scoped package and version, checks package metadata, and records the real publication timestamp while preserving earlier versions. It fails if the release cannot be verified. Review the generated index and submit its change to `main`.
+npm can accept an upload while still processing the release. If registry verification fails, inspect the package and any staged-release status before retrying. Do not blindly republish: npm versions cannot be overwritten. Never delete or move a published release tag to point at different source.
 
-Users can then enable DSH's custom plugin market, open **Discover → Add index source**, and add the direct JSON URL:
+The recovery entry point is **Run workflow** for the publish workflow, selecting **main**:
+
+- If the failed release's reserved commit is still the branch head, a retry can resume that same release.
+- If newer human commits have reached `main`, an ordinary run must stop rather than attach changed code to the reserved version. Dispatch with `resume_tag` set to the original tag, for example `v0.2.0`, to finish the original reserved source first.
+- After that recovery succeeds, dispatch again on `main` without `resume_tag` to release the newer changes.
+
+Check which steps already completed before retrying, including registry publication, market update, and GitHub Release creation. A failed post-publication step calls for finishing that release, not inventing a replacement artifact with the same version. Inspect the workflow's actual result before treating recovery as complete.
+
+## Custom market index
+
+The [market index](../market-index.json) lists registry-verified releases. The automatic workflow is responsible for updating it after registry verification; publication to npm alone does not update the index or submit the plugin to an official DSH market.
+
+The underlying `npm run market:update` command queries npm for the exact scoped package and version, checks package metadata, and records the real publication timestamp while preserving earlier versions. It fails if the release cannot be verified. If manual repair is needed, use the source checkout for the published version, review the generated index, and coordinate with any active release run before committing the repair.
+
+Users can enable DSH's custom plugin market, open **Discover → Add index source**, and add the direct JSON URL:
 
 ```text
 https://raw.githubusercontent.com/yiliang114/dsh-session-deck/main/market-index.json
@@ -98,4 +114,4 @@ https://raw.githubusercontent.com/yiliang114/dsh-session-deck/main/market-index.
 
 Use the raw JSON URL, not the GitHub file-preview URL. DSH's market reads user-added indexes; there is no official automatic collection triggered by npm publication. Inclusion in a separately maintained community index is a separate process. See the [DSH custom market documentation](https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/experimental/plugin-market-bundle/README.md).
 
-After a confirmed publication and index update, revise both READMEs' availability statements and commands to describe the actual released version.
+Keep README installation commands on `@latest`, npm links on the unversioned package URL, and GitHub Release links on `/releases/latest`, so future published READMEs do not retain a stale current-version label. Keep historical validation records explicitly labeled with the version they verified.

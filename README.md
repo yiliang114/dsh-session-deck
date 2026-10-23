@@ -1,6 +1,6 @@
 # DSH Session Deck
 
-[简体中文](https://github.com/yiliang114/dsh-session-deck/blob/main/README.zh-CN.md) · [npm 0.1.2](https://www.npmjs.com/package/@yiliang114/dsh-session-deck/v/0.1.2) · [Releases](https://github.com/yiliang114/dsh-session-deck/releases) · [Release CI](https://github.com/yiliang114/dsh-session-deck/actions/runs/39979809316)
+[简体中文](https://github.com/yiliang114/dsh-session-deck/blob/main/README.zh-CN.md) · [npm](https://www.npmjs.com/package/@yiliang114/dsh-session-deck) · [Latest release](https://github.com/yiliang114/dsh-session-deck/releases/latest) · [Release CI](https://github.com/yiliang114/dsh-session-deck/actions/workflows/publish.yml)
 
 **Keep track of work across DSH workspaces without leaving your conversation.** Session Deck adds Activity and Favorites views to the native DeepSeek Harness sidebar, so you can spot running agents, reply to waiting sessions, and return to completed results.
 
@@ -27,7 +27,7 @@ Screenshots show the switcher above the workspace region without host patches, b
 
 ## Install from npm
 
-**Version 0.1.2 is available on [npm](https://www.npmjs.com/package/@yiliang114/dsh-session-deck/v/0.1.2)**, published through [release CI](https://github.com/yiliang114/dsh-session-deck/actions/runs/39979809316). The official npm tarball was installed in isolation, its SHA512 integrity verified, and its host, client, and patch files checked against the source.
+Install the latest release from [npm](https://www.npmjs.com/package/@yiliang114/dsh-session-deck). As historical validation, the initial 0.1.2 release tarball was installed in isolation, its SHA512 integrity verified, and its host, client, and patch files checked against the source; this does not establish verification of later releases.
 
 Requirements:
 
@@ -38,7 +38,7 @@ Requirements:
 **Migrating from an earlier installation:** disable and remove the old plugin instance in DSH's plugin manager **before installing from npm**, to avoid two instances controlling the sidebar. You can keep its browser storage.
 
 ```sh
-dsh plugin --profile web add @yiliang114/dsh-session-deck@0.1.2 --ignore-scripts
+dsh plugin --profile web add @yiliang114/dsh-session-deck@latest --ignore-scripts
 ```
 
 Replace `web` if you use another profile. Refresh your existing DSH GUI, then choose **Workspaces / Activity / Favorites** above the workspace region, below global panels. On the supported DSH 0.2.1-rc.2 layout, the plugin places the switcher there automatically without patching installed DSH files. The native workspace browser remains available in Workspaces. Refresh after client changes too; hot reload is not assumed.
@@ -67,17 +67,17 @@ npm run verify
 npm pack --ignore-scripts
 ```
 
-Copy the generated archive to the target machine, then install using its absolute path:
+Copy the generated archive to the target machine, then install using its absolute path. Replace `VERSION` with the version in the filename produced by `npm pack`:
 
 ```sh
-dsh plugin --profile web add /absolute/path/yiliang114-dsh-session-deck-0.1.2.tgz --ignore-scripts
+dsh plugin --profile web add /absolute/path/yiliang114-dsh-session-deck-VERSION.tgz --ignore-scripts
 ```
 
 Refresh the GUI. A tarball installation does not depend on the original checkout. Both linked and tarball installations place the switcher above the workspace region automatically on the supported rc.2 layout; neither needs a host patch.
 
 ### Custom plugin market
 
-The [market index](https://raw.githubusercontent.com/yiliang114/dsh-session-deck/main/market-index.json) lists the verified **0.1.2** npm release. Add the following raw JSON URL as a source in DSH's custom plugin market:
+The [market index](https://raw.githubusercontent.com/yiliang114/dsh-session-deck/main/market-index.json) lists registry-verified npm releases. Add the following raw JSON URL as a source in DSH's custom plugin market:
 
 ```text
 https://raw.githubusercontent.com/yiliang114/dsh-session-deck/main/market-index.json
@@ -85,7 +85,7 @@ https://raw.githubusercontent.com/yiliang114/dsh-session-deck/main/market-index.
 
 This is a **user-added custom market source**, not an official DSH listing. Publishing to npm does not automatically add the plugin to an official DSH market.
 
-Maintainers: see the [release guide](https://github.com/yiliang114/dsh-session-deck/blob/main/docs/releasing.md) for npm bootstrap, OIDC configuration, and index updates.
+Maintainers: the intended automatic release process queues pushes to `main`, tests the latest `main` after acquiring the release queue, and increments the patch version (for example, `0.1.2` → `0.1.3`). To choose a minor version, run `npm version minor --no-git-tag-version`, then commit and push to `main` normally: an explicit greater stable version such as `0.2.0` is preserved, and the following release becomes `0.2.1`. The workflow owns tags, publication with provenance, registry verification, market updates, and GitHub Releases. See the [release guide](https://github.com/yiliang114/dsh-session-deck/blob/main/docs/releasing.md) for authentication prerequisites and recovery; this description is not evidence that the new automation has been verified.
 
 ## How session status works
 

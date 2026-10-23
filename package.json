@@ -30,7 +30,7 @@
   },
   "files": ["src", "lib", "scripts/patch-sidebar-before.mjs", "cordis.patch.yml", "README.md"],
   "scripts": {
-    "build": "node --check src/host.mjs && node --check lib/client.js && node --check scripts/patch-sidebar-before.mjs && node --check scripts/check-package.mjs && node --check scripts/update-market-index.mjs && node --check scripts/verify-published.mjs",
+    "build": "node --check src/host.mjs && node --check lib/client.js && node --check scripts/patch-sidebar-before.mjs && node --check scripts/check-package.mjs && node --check scripts/update-market-index.mjs && node --check scripts/verify-published.mjs && node --check scripts/auto-release.mjs",
     "market:update": "node scripts/update-market-index.mjs",
     "test": "node --test test/*.test.mjs",
     "check:package": "node scripts/check-package.mjs",

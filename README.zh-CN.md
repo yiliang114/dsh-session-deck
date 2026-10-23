@@ -1,6 +1,6 @@
 # DSH Session Deck
 
-[English](https://github.com/yiliang114/dsh-session-deck/blob/main/README.md) · [npm 0.1.2](https://www.npmjs.com/package/@yiliang114/dsh-session-deck/v/0.1.2) · [发布版本](https://github.com/yiliang114/dsh-session-deck/releases) · [发布 CI](https://github.com/yiliang114/dsh-session-deck/actions/runs/39979809316)
+[English](https://github.com/yiliang114/dsh-session-deck/blob/main/README.md) · [npm](https://www.npmjs.com/package/@yiliang114/dsh-session-deck) · [最新发布](https://github.com/yiliang114/dsh-session-deck/releases/latest) · [发布 CI](https://github.com/yiliang114/dsh-session-deck/actions/workflows/publish.yml)
 
 **不用离开当前对话，就能掌握所有 DSH 工作区中的会话进展。** Session Deck 在 DeepSeek Harness 原生侧栏中加入 Activity 和 Favorites 视图，让你快速找到运行中的代理、等待回复的会话，以及尚未查看的完成结果。
 
@@ -27,7 +27,7 @@
 
 ## 从 npm 安装
 
-**0.1.2 已在 [npm](https://www.npmjs.com/package/@yiliang114/dsh-session-deck/v/0.1.2) 发布**，由[发布 CI](https://github.com/yiliang114/dsh-session-deck/actions/runs/39979809316) 完成。官方 npm tarball 已在隔离环境中安装，SHA512 完整性校验通过，宿主入口、客户端和补丁文件均已与源码核对。
+从 [npm](https://www.npmjs.com/package/@yiliang114/dsh-session-deck) 安装最新发布版本。作为历史验证记录，首次发布的 0.1.2 tarball 已在隔离环境中安装，SHA512 完整性校验通过，宿主入口、客户端和补丁文件均已与源码核对；这不代表后续版本已经完成相同验证。
 
 环境要求：
 
@@ -38,7 +38,7 @@
 **从旧安装迁移：**在通过 npm 安装前，请先在 DSH 插件管理中停用并移除旧插件实例，避免两个实例同时接管侧栏；浏览器存储可以保留。
 
 ```sh
-dsh plugin --profile web add @yiliang114/dsh-session-deck@0.1.2 --ignore-scripts
+dsh plugin --profile web add @yiliang114/dsh-session-deck@latest --ignore-scripts
 ```
 
 使用其他 profile 时替换 `web`。刷新现有 DSH GUI，然后在全局面板下方、工作区区域上方选择 **Workspaces / Activity / Favorites**。在支持的 DSH 0.2.1-rc.2 布局中，插件会自动将切换条放到该位置，无需修改已安装的 DSH 文件。Workspaces 保留原生工作区浏览器。修改客户端后也需要刷新，不应假定热更新已启用。
@@ -67,17 +67,17 @@ npm run verify
 npm pack --ignore-scripts
 ```
 
-将生成的归档文件复制到目标机器，再用绝对路径安装：
+将生成的归档文件复制到目标机器，再用绝对路径安装。将 `VERSION` 替换为 `npm pack` 输出文件名中的版本号：
 
 ```sh
-dsh plugin --profile web add /absolute/path/yiliang114-dsh-session-deck-0.1.2.tgz --ignore-scripts
+dsh plugin --profile web add /absolute/path/yiliang114-dsh-session-deck-VERSION.tgz --ignore-scripts
 ```
 
 安装后刷新 GUI。tarball 安装不依赖原仓库目录持续存在。链接和 tarball 两种安装方式都会在支持的 rc.2 布局中自动将切换条放到工作区区域上方，无需宿主补丁。
 
 ### 自定义插件市场
 
-[市场索引](https://raw.githubusercontent.com/yiliang114/dsh-session-deck/main/market-index.json)已列出经验证的 **0.1.2** npm 发布版本。在 DSH 自定义插件市场中添加以下原始 JSON 地址作为索引源：
+[市场索引](https://raw.githubusercontent.com/yiliang114/dsh-session-deck/main/market-index.json)列出已通过注册表验证的 npm 发布版本。在 DSH 自定义插件市场中添加以下原始 JSON 地址作为索引源：
 
 ```text
 https://raw.githubusercontent.com/yiliang114/dsh-session-deck/main/market-index.json
@@ -85,7 +85,7 @@ https://raw.githubusercontent.com/yiliang114/dsh-session-deck/main/market-index.
 
 这是**用户自行添加的自定义市场源**，并非 DSH 官方收录。发布 npm 不会自动将插件加入官方 DSH 市场。
 
-维护者请参阅[发布指南（英文）](https://github.com/yiliang114/dsh-session-deck/blob/main/docs/releasing.md)，了解首次 npm 发布、OIDC 授权和索引更新。
+维护者：预期的自动发布流程会将 `main` 推送加入发布队列，取得队列执行权后测试最新的 `main`，并递增补丁版本（例如 `0.1.2` → `0.1.3`）。需要手动选择次版本时，执行 `npm version minor --no-git-tag-version`，再正常提交并推送到 `main`：显式指定的更高稳定版本（例如 `0.2.0`）会保留，下一次发布则为 `0.2.1`。工作流负责标签、带 provenance 的发布、注册表验证、市场索引更新和 GitHub Release。认证前提与失败恢复请参阅[发布指南（英文）](https://github.com/yiliang114/dsh-session-deck/blob/main/docs/releasing.md)；此流程说明不代表新自动化已经验证完成。
 
 ## 会话状态与边界
 
