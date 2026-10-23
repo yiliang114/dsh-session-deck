@@ -36,7 +36,7 @@ jobs:
       - name: Preserve current release tooling for tag recovery
         run: |
           mkdir -p "$RUNNER_TEMP/release-tools"
-          cp scripts/auto-release.mjs scripts/verify-published.mjs "$RUNNER_TEMP/release-tools/"
+          cp scripts/auto-release.mjs scripts/verify-published.mjs scripts/update-market-index.mjs "$RUNNER_TEMP/release-tools/"
       - name: Verify and reserve release
         env:
           GH_TOKEN: ${{ github.token }}

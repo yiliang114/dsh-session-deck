@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
 import { appendFileSync, existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { pathToFileURL } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { verifyPublished } from './verify-published.mjs'
 
 const registry = 'https://registry.npmjs.org'
@@ -291,7 +291,7 @@ async function finalize(run, ghToken) {
   // This stage independently verifies before allowing any discoverability writes.
   const published = await verifyPublished(pkg, { expectedGitHead: sha })
   assertPublishedIdentity(published, pkg, sha, packIntegrity(run))
-  run('npm', ['run', 'market:update'])
+  run('node', [fileURLToPath(new URL('./update-market-index.mjs', import.meta.url))])
   run('git', ['add', 'market-index.json'])
   const changed = !run('git', ['diff', '--cached', '--quiet'], { allowFailure: true }).ok
   if (changed) {
