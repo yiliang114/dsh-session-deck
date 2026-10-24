@@ -33,6 +33,52 @@ const list = sessions => ({
 })
 const workspaces = (items = [], archivedSessionIds = []) => ({ phase: 'ready', items, archivedSessionIds })
 
+test('an unchanged stale running tab preserves a remote completion and does not notify twice', () => {
+  const storage = memoryStorage(), a = createPendingStore(storage), b = createPendingStore(storage)
+  const running = list([session('main', { running: true })]), idle = list([session('main')])
+  a.observe(running, new Map()); b.observe(running, new Map())
+  const [first] = a.observe(idle, new Map())
+  b.sync()
+  assert.equal(b.observe(running, new Map()).length, 0)
+  assert.equal(b.getSnapshot().main.running, false)
+  assert.equal(b.getSnapshot().main.pending, true)
+  assert.equal(b.getSnapshot().main.revision, first.revision)
+  assert.equal(b.observe(idle, new Map()).length, 0)
+  b.observe(running, new Map())
+  assert.equal(b.getSnapshot().main.pending, false, 'a genuine new local run still clears the prior result')
+  assert.equal(b.observe(idle, new Map()).length, 1, 'a later run still creates its own completion')
+})
+
+test('an unchanged stale idle tab cannot stop another tab’s new run', () => {
+  const storage = memoryStorage(), a = createPendingStore(storage), b = createPendingStore(storage)
+  const running = list([session('main', { running: true })]), idle = list([session('main')])
+  a.observe(idle, new Map()); b.observe(idle, new Map())
+  a.observe(running, new Map())
+  const revision = a.getSnapshot().main.revision
+  b.sync(); b.observe(idle, new Map())
+  assert.equal(b.getSnapshot().main.running, true)
+  assert.equal(b.getSnapshot().main.revision, revision)
+  b.observe(running, new Map())
+  assert.equal(b.observe(idle, new Map()).length, 1)
+})
+
+test('a stale running tab can acknowledge a remote completion that is actually visible', () => {
+  const storage = memoryStorage(), a = createPendingStore(storage), b = createPendingStore(storage)
+  const running = list([session('main', { running: true })]), idle = list([session('main')])
+  a.observe(running, new Map()); b.observe(running, new Map())
+  a.observe(idle, new Map())
+  b.sync()
+  assert.equal(b.observe(running, new Map(), { canAck: () => true }).length, 0)
+  assert.equal(b.getSnapshot().main.running, false)
+  assert.equal(b.getSnapshot().main.pending, false)
+  assert.equal(b.getSnapshot().main.seeded, true)
+  a.sync()
+  assert.equal(a.getSnapshot().main.pending, false, 'the visible read propagates to the completing tab')
+  assert.equal(b.observe(idle, new Map()).length, 0, 'receiving the idle status cannot replay the read completion')
+  b.observe(running, new Map())
+  assert.equal(b.observe(idle, new Map()).length, 1, 'the next real run can still complete')
+})
+
 test('group unread counts use workspace membership and exclude ineligible sessions', () => {
   const sessions = [
     session('one', { pending: true }), session('fork', { parentId: 'one' }),
@@ -509,6 +555,45 @@ test('hidden completion uses one system notification and keeps click navigation'
   assert.equal(f.oscillators.length, 2, 'background delivery plays exactly one plugin cue')
   f.notifications[0].onclick()
   assert.deepEqual(f.opens, ['main'])
+})
+
+test('a completion waits for workspace hydration and delivers once membership is ready', async t => {
+  const f = notificationFixture({ visible: false })
+  t.after(() => f.unmount())
+  await tick()
+  f.setWorkspaces({ phase: 'loading' })
+  f.setIdle()
+  await tick()
+  assert.equal(f.pending().running, true, 'loading membership cannot consume the running baseline')
+  assert.equal(f.pending().pending, false)
+  assert.equal(f.notifications.length, 0)
+  assert.equal(f.oscillators.length, 0)
+  f.setWorkspaces({ phase: 'ready' })
+  await tick()
+  assert.equal(f.pending().pending, true)
+  assert.equal(f.notifications.length, 1)
+  assert.deepEqual(f.oscillators, [880, 1174.66])
+  f.render()
+  await tick()
+  assert.equal(f.notifications.length, 1, 'readiness rerenders cannot repeat the completion')
+  assert.equal(f.oscillators.length, 2)
+})
+
+test('resolved archived membership excludes a completion deferred during workspace hydration', async t => {
+  const f = notificationFixture({ visible: false })
+  t.after(() => f.unmount())
+  await tick()
+  f.setWorkspaces({ phase: 'loading' })
+  f.setIdle()
+  await tick()
+  assert.equal(f.pending().running, true)
+  f.setWorkspaces({ phase: 'ready', archivedSessionIds: ['main'] })
+  await tick()
+  f.render()
+  await tick()
+  assert.equal(f.pending().pending, false)
+  assert.equal(f.notifications.length, 0)
+  assert.equal(f.oscillators.length, 0)
 })
 
 test('hidden completion still plays the cue without notification permission', async t => {

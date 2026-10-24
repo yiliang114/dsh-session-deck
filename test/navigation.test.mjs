@@ -186,8 +186,10 @@ test('footer detachment removes the owned host; restoration and remount remain c
 
 test('slot preference remains live and compact buttons retain accessible full labels', () => {
   const elements = (type, props, ...children) => ({ type, props, children })
-  const effects = [], registrations = [], subscriptions = new Map(), disposals = []
-  const plugin = load({ createElement: elements, useEffect: effect => effects.push(effect), useSyncExternalStore: (subscribe, snapshot) => snapshot() }, {
+  const effects = [], layouts = [], registrations = [], subscriptions = new Map(), disposals = []
+  const plugin = load({ createElement: elements, useEffect: effect => effects.push(effect),
+    useLayoutEffect: effect => layouts.push(effect), useRef: current => ({ current }), useState: value => [value, () => {}],
+    useSyncExternalStore: (subscribe, snapshot) => snapshot() }, {
     createElement: () => ({ remove() {} }), getElementById() {}, head: { appendChild() {} },
   })
   let before = false
@@ -206,7 +208,11 @@ test('slot preference remains live and compact buttons retain accessible full la
   const navigation = navigationRegistrations()[1]
   assert.equal(navigation.spec.name, 'sidebar.workspaces.before')
   const props = { wide: false, useSessions: () => ({ phase: 'ready', ids: [], byId: {} }), useSessionStatus: () => new Map() }
-  const switchElement = navigation.component(props).children[0]
+  const navigationTree = navigation.component(props)
+  assert.equal(typeof navigationTree.props.ref, 'function', 'legacy slot supplies a real sidebar badge anchor')
+  assert.equal(layouts.length, 2, 'legacy slot mounts and updates the shared workspace badge lifecycle')
+  for (const setup of layouts) setup()?.()
+  const switchElement = navigationTree.children[0]
   assert.deepEqual({ ...switchElement.props }, { ...props, unread: 0, favoriteUnread: 0 })
   const compact = switchElement.type(props)
   assert.deepEqual(compact.children.slice(0, 3).map(button => button.children[0]), ['W', 'A', '★'])
