@@ -380,9 +380,10 @@ const deferred = () => {
   return { promise, resolve, reject }
 }
 
-function browserFixture({ rows = [{ id: 'one', displayTitle: 'First archive', updatedAt: 1000, cwd: '/projects/one' }], unarchive = () => Promise.resolve(), initialMode = 'activity' } = {}) {
+function browserFixture({ rows = [{ id: 'one', displayTitle: 'First archive', updatedAt: 1000, cwd: '/projects/one' }], unarchive = () => Promise.resolve(), openSession = () => {}, initialMode = 'activity', initialSound } = {}) {
   const dom = domFixture(), hooks = hooksHarness(), registrations = [], disposals = [], listeners = new Set(), subscriptions = new Map(), calls = []
   const values = new Map([['dsh-session-activity.mode.v1', initialMode]])
+  if (initialSound !== undefined) values.set('dsh-session-activity.sound.v1', initialSound)
   const storage = { getItem: key => values.get(key), setItem: (key, value) => values.set(key, value) }
   const snapshots = {
     list: { phase: 'ready', ids: rows.map(row => row.id), byId: Object.fromEntries(rows.map(row => [row.id, row])) },
@@ -412,6 +413,7 @@ function browserFixture({ rows = [{ id: 'one', displayTitle: 'First archive', up
         assert.equal(values.get('dsh-session-activity.mode.v1'), 'workspace', 'workspace mode changes before opening')
         assert.ok(!registrations.some(registration => registration.active && registration.spec.name === 'sidebar.workspaces'))
         calls.push(['open', id])
+        return openSession(id)
       },
     },
   })
@@ -451,10 +453,16 @@ test('archive browser has a dedicated stable footer registration and an accessib
   const tree = f.show()
   assert.equal(modal(tree).props.title, 'Archived sessions')
   assert.equal(modal(tree).props.closeLabel, 'Close')
-  assert.match(modal(tree).props.description, /restore.*workspace.*open/)
+  assert.match(modal(tree).props.description, /Restore.*workspace.*open/)
   assert.equal(search(tree).props['aria-label'], 'Search archived sessions')
   assert.equal(search(tree).props['data-modal-autofocus'], true)
-  assert.equal(archiveRows(tree)[0].props['aria-label'], 'Restore and open: First archive')
+  const row = findNode(tree, node => node.props.className === 'dsa-archive-row')
+  assert.equal(row.type, 'div')
+  assert.equal(row.props.onClick, undefined, 'browsing the row never restores the session')
+  assert.equal(row.props.tabIndex, undefined, 'only the explicit action enters the tab order')
+  assert.deepEqual(f.calls, [])
+  assert.equal(text(archiveRows(tree)[0]), 'Restore')
+  assert.equal(archiveRows(tree)[0].props['aria-label'], 'Restore session: First archive')
   assert.equal(archiveRows(tree)[0].props.type, 'button')
 })
 
@@ -485,6 +493,21 @@ test('archive restore awaits unarchive, blocks same-tick clicks across rows and 
   assert.deepEqual(f.calls, [['unarchive', 'one'], ['open', 'one']])
   assert.equal(modal(tree), undefined)
   assert.equal(f.values.get('dsh-session-activity.mode.v1'), 'workspace')
+})
+
+test('a restored session waits for navigation and reports an open failure accurately', async t => {
+  const navigation = deferred()
+  const f = browserFixture({ openSession: () => navigation.promise })
+  t.after(() => f.dispose())
+  const opening = archiveRows(f.show())[0].props.onClick()
+  await new Promise(resolve => setImmediate(resolve))
+  assert.deepEqual(f.calls, [['unarchive', 'one'], ['open', 'one']])
+  assert.ok(modal(f.render()), 'dialog remains open until navigation settles')
+  assert.equal(archiveRows(f.render())[0].props.disabled, true)
+  navigation.reject(new Error('Connection lost'))
+  await opening
+  assert.deepEqual(alerts(f.render()).map(text), ['Restored “First archive”, but could not open it: Connection lost'])
+  assert.equal(archiveRows(f.render())[0].props.disabled, false)
 })
 
 test('failed archive restores never navigate, show the error and allow a successful retry', async t => {
@@ -573,7 +596,7 @@ test('archive search filters rows, clears on reopen and reacts to externally res
   tree = f.render()
   assert.deepEqual(archiveRows(tree).map(row => row.props['data-session-id']), ['beta'])
   assert.equal(search(tree).props.value, ' TEAM ')
-  assert.match(text(archiveRows(tree)[0]), /Beta archiveTeam workspace/)
+  assert.match(text(findNode(tree, node => node.props.className === 'dsa-archive-row')), /Beta archiveTeam workspace/)
   modal(tree).props.onClose()
   tree = f.show()
   assert.equal(search(tree).props.value, '')
@@ -593,8 +616,7 @@ test('archive modal persists after More closes and its menu portal disappears', 
   const portal = findNode(tree, node => node.type === portalType)
   const host = portal.props.host
   assert.equal(host.parentNode, f.view)
-  assert.equal(portal.children[0].type, primitives.MenuItemButton)
-  assert.equal(text(portal), 'Show archived')
+  assert.deepEqual(nodes(portal).filter(node => node.type === primitives.MenuItemButton).map(text), ['Show archived', 'Enable and test sound'])
   tree = f.show()
   assert.equal(f.trigger.getAttribute('aria-expanded'), 'false')
   assert.equal(f.document.activeElement, f.trigger)
@@ -609,6 +631,24 @@ test('archive modal persists after More closes and its menu portal disappears', 
   tree = f.render()
   assert.equal(findNode(tree, node => node.type === portalType).props.host, host)
   assert.ok(modal(f.show()), 'the archive entry still works after reopening More')
+})
+
+test('sound preview enables a muted browser and reports playback failure without claiming audibility', async t => {
+  const f = browserFixture({ initialSound: 'off' })
+  t.after(() => f.dispose())
+  f.connect()
+  f.trigger.click()
+  const action = findNode(f.render(), node => node.type === primitives.MenuItemButton && text(node) === 'Enable and test sound')
+  assert.ok(action)
+  await action.props.onSelect()
+  assert.equal(f.values.get('dsh-session-activity.sound.v1'), 'on')
+  assert.equal(f.trigger.getAttribute('aria-expanded'), 'false')
+  const tree = f.render()
+  assert.equal(modal(tree).props.title, 'Completion sound test')
+  assert.match(text(modal(tree)), /could not start/)
+  assert.deepEqual(f.calls, [], 'preview never opens or restores sessions')
+  modal(tree).props.onClose()
+  assert.equal(modal(f.render()), undefined)
 })
 
 test('archive restore settling after plugin disposal never navigates, changes mode or updates unmounted state', async t => {

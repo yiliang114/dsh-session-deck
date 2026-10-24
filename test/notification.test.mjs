@@ -4,20 +4,20 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 
 const source = readFileSync(new URL('../lib/client.js', import.meta.url), 'utf8')
-function load(react = {}, document = {}, events = {}) {
+function load(react = {}, document = {}, events = {}, globals = {}) {
   let plugin
   vm.runInNewContext(source, {
     window: {
       __ModuleLoader__: { load: entry => { plugin = entry.factory(name => name === 'react' ? react : {}) } },
       addEventListener() {}, removeEventListener() {}, ...events,
     },
-    document, setTimeout, clearTimeout, setInterval, clearInterval,
+    document, setTimeout, clearTimeout, setInterval, clearInterval, ...globals,
   })
   return plugin
 }
 
 const {
-  selectWorkspaceUnread, createPendingStore, createDeliveryLedger, mountWorkspaceUnreadBadges,
+  selectWorkspaceUnread, selectFavoriteUnread, createPendingStore, observePending, createDeliveryLedger, mountWorkspaceUnreadBadges,
   createSoundStore, pageIsVisible, conversationIsActive, PENDING_KEY, NOTIFIED_KEY, SOUND_KEY,
 } = load().__test__
 
@@ -58,6 +58,16 @@ test('group unread counts use workspace membership and exclude ineligible sessio
   assert.equal(selectWorkspaceUnread({ ...list(sessions), phase: 'loading' }, workspaces([]), { one: { pending: true } }).size, 0)
 })
 
+test('Favorites unread tracks only eligible pinned sessions and responds to reads and unpinning', () => {
+  const sessions = list([session('pinned'), session('other'), session('archived'), session('blank', { blank: true })])
+  const workspace = { ...workspaces([], ['archived']), pinnedSessionIds: ['pinned', 'archived', 'blank', 'missing'] }
+  const queue = { pinned: { pending: true }, other: { pending: true }, archived: { pending: true }, blank: { pending: true }, missing: { pending: true } }
+  assert.equal(selectFavoriteUnread(sessions, workspace, queue), 1)
+  assert.equal(selectFavoriteUnread(sessions, { ...workspace, pinnedSessionIds: [] }, queue), 0)
+  assert.equal(selectFavoriteUnread(sessions, workspace, { ...queue, pinned: { pending: false } }), 0)
+  assert.equal(selectFavoriteUnread(sessions, { ...workspace, pinnedSessionIds: ['pinned', 'other'] }, queue), 2)
+})
+
 test('only a live transition produces a completion event; reload seeds unread silently', () => {
   const storage = memoryStorage()
   let queue = createPendingStore(storage)
@@ -84,6 +94,47 @@ test('only a live transition produces a completion event; reload seeds unread si
   const reloaded = createPendingStore(reloadStorage)
   assert.equal(reloaded.observe(idle, new Map()).length, 0)
   assert.equal(reloaded.getSnapshot().main.pending, true)
+})
+
+test('a followup clears the previous unread result and its next completion becomes unread again', () => {
+  const queue = createPendingStore(memoryStorage())
+  const running = list([session('main', { running: true })]), idle = list([session('main')])
+  queue.observe(running, new Map())
+  queue.observe(idle, new Map())
+  assert.equal(queue.getSnapshot().main.pending, true)
+  const oldRevision = queue.getSnapshot().main.revision
+  assert.equal(queue.observe(running, new Map()).length, 0)
+  assert.equal(queue.getSnapshot().main.pending, false, 'starting followup supersedes the old result')
+  const completion = queue.observe(idle, new Map())
+  assert.equal(completion.length, 1)
+  assert.equal(queue.getSnapshot().main.pending, true, 'new output still needs to be read')
+  assert.ok(queue.getSnapshot().main.revision > oldRevision)
+})
+
+test('legacy persisted active-and-pending state is repaired during hydration', () => {
+  const storage = memoryStorage()
+  storage.setItem(PENDING_KEY, JSON.stringify({ main: { running: true, pending: true, seeded: true, revision: 1 } }))
+  const queue = createPendingStore(storage)
+  const running = list([session('main', { running: true })])
+  assert.equal(queue.observe(running, new Map()).length, 0)
+  assert.equal(queue.getSnapshot().main.pending, false)
+  assert.equal(JSON.parse(storage.getItem(PENDING_KEY)).main.pending, false)
+  assert.equal(queue.observe(list([session('main')]), new Map()).length, 1)
+  assert.equal(queue.getSnapshot().main.pending, true)
+})
+
+test('a captured read acknowledgement cannot clear a newer completion revision', () => {
+  const queue = createPendingStore(memoryStorage())
+  const running = list([session('main', { running: true })]), idle = list([session('main')])
+  queue.observe(running, new Map()); queue.observe(idle, new Map())
+  const readRevision = queue.getSnapshot().main.revision
+  queue.observe(running, new Map()); queue.observe(idle, new Map())
+  const newRevision = queue.getSnapshot().main.revision
+  queue.acknowledge('main', readRevision)
+  assert.equal(queue.getSnapshot().main.pending, true)
+  assert.equal(queue.getSnapshot().main.revision, newRevision)
+  queue.acknowledge('main', newRevision)
+  assert.equal(queue.getSnapshot().main.pending, false)
 })
 
 test('archived sessions do not create a completion or unread record', () => {
@@ -354,27 +405,30 @@ const allText = tree => !tree || typeof tree === 'boolean' ? '' : typeof tree !=
   : (Array.isArray(tree) ? tree : tree.children).map(allText).join(' ')
 const tick = () => new Promise(resolve => setImmediate(resolve))
 
-function notificationFixture({ visible = true, retained = 0 } = {}) {
-  const hooks = hooksHarness(), registrations = [], opens = [], notifications = [], oscillators = []
+function notificationFixture({ visible = true, retained = 0, locks, permission = 'granted', audioState = 'running', resumeAudio, archiveSession = async () => {} } = {}) {
+  const hooks = hooksHarness(), registrations = [], opens = [], notifications = [], oscillators = [], audioContexts = [], cleanups = []
+  let activeHooks = hooks, now = Date.now()
+  const react = { ...hooks.react }
+  for (const key of ['useState', 'useRef', 'useEffect', 'useLayoutEffect', 'useSyncExternalStore']) react[key] = (...args) => activeHooks.react[key](...args)
   let list = { phase: 'ready', ids: ['main'], byId: { main: { id: 'main', displayTitle: 'Alpha task', running: true, retainedBy: { mainView: retained } } } }
   let statuses = new Map()
-  const values = new Map()
+  let workspaceState = { phase: 'ready', items: [{ workspaceId: 'w1', title: 'Work', sessionIds: ['main'] }], archivedSessionIds: [] }
+  const values = new Map([['dsh-session-activity.mode.v1', 'activity']]), listeners = new Map()
   const storage = { getItem: key => values.get(key), setItem: (key, value) => values.set(key, value) }
   class FakeNotification {
     constructor(title, options) { this.title = title; this.options = options; notifications.push(this) }
     close() { this.onclose?.() }
   }
-  FakeNotification.permission = 'granted'
-  FakeNotification.requestPermission = () => Promise.resolve('granted')
+  FakeNotification.permission = permission
   class FakeAudioContext {
-    constructor() { this.state = 'running'; this.currentTime = 0; this.destination = {} }
+    constructor() { this.state = audioState; this.currentTime = 0; this.destination = {}; audioContexts.push(this) }
     createOscillator() {
       const oscillator = { type: '', frequency: { value: 0 }, connect: node => node,
         start: () => oscillators.push(oscillator.frequency.value), stop() {} }
       return oscillator
     }
     createGain() { return { gain: { setValueAtTime() {}, exponentialRampToValueAtTime() {} }, connect: node => node } }
-    resume() { this.state = 'running'; return Promise.resolve() }
+    resume() { return Promise.resolve(resumeAudio?.()).then(() => { this.state = 'running' }) }
     close() { this.state = 'closed'; return Promise.resolve() }
   }
   const document = {
@@ -382,35 +436,51 @@ function notificationFixture({ visible = true, retained = 0 } = {}) {
     head: { appendChild() {} }, getElementById() { return null }, createElement: () => ({ remove() {} }),
     addEventListener() {}, removeEventListener() {},
   }
-  const plugin = load(hooks.react, document, {
+  const plugin = load(react, document, {
     localStorage: storage, Notification: FakeNotification, AudioContext: FakeAudioContext,
-    addEventListener() {}, removeEventListener() {}, focus() {},
-  })
+    addEventListener(name, fn) { listeners.set(name, fn) }, removeEventListener(name) { listeners.delete(name) }, focus() {},
+  }, { navigator: { locks }, Date: class extends Date { static now() { return now } } })
   plugin.apply({
-    effect: setup => { setup() },
+    effect: setup => { cleanups.push(setup()) },
     slots: {
       inject: (name, callback) => callback(),
       spec: () => false,
       subscribe: () => () => {},
       register: (spec, component) => { const registration = { spec, component }; registrations.push(registration); return () => {} },
     },
-    uiWorkspace: { openSession: id => opens.push(id) },
+    uiWorkspace: { openSession: id => opens.push(id), archiveSession },
     sessions: {},
   })
   const registration = registrations.find(({ spec }) => spec.id === '@yiliang114/dsh-session-deck.notifications')
   assert.ok(registration, 'notification center is registered in the shell overlay')
-  hooks.mount(registration.component, {
-    useSessions: () => list,
-    useSessionStatus: () => statuses,
-    useWorkspaces: () => ({ phase: 'ready', items: [{ workspaceId: 'w1', title: 'Work', sessionIds: ['main'] }], archivedSessionIds: [] }),
-    usePanelInfo: () => ({ activePanelId: null }),
-  })
+  const props = { useSessions: () => list, useSessionStatus: () => statuses, useWorkspaces: () => workspaceState, usePanelInfo: () => ({ activePanelId: null }) }
+  hooks.mount(registration.component, props)
+  const update = () => hooks.update(props)
   return {
-    ...hooks, registration, opens, notifications, oscillators, document,
+    ...hooks, registration, opens, notifications, oscillators, audioContexts, document, values,
+    unmount() { hooks.unmount(); cleanups.forEach(fn => fn?.()) },
     setIdle(nextStatuses = new Map()) {
       list = { ...list, byId: { ...list.byId, main: { ...list.byId.main, running: false } } }
       statuses = nextStatuses
-      return hooks.update({ useSessions: () => list, useSessionStatus: () => statuses })
+      return update()
+    },
+    setSession(patch) { list = { ...list, byId: { ...list.byId, main: { ...list.byId.main, ...patch } } }; return update() },
+    setWorkspaces(patch) { workspaceState = { ...workspaceState, ...patch }; return update() },
+    setVisible(next) { document.visibilityState = next ? 'visible' : 'hidden'; document.hidden = !next; document.hasFocus = () => next; listeners.get(next ? 'focus' : 'blur')?.(); return update() },
+    advanceTime(ms) { now += ms },
+    mute() { values.set(SOUND_KEY, 'off'); listeners.get('storage')?.({ key: SOUND_KEY }); return update() },
+    pending() { return JSON.parse(storage.getItem(PENDING_KEY) || '{}').main },
+    archive() {
+      const activity = registrations.find(({ component }) => component.name === 'Activity').component
+      const activityHooks = hooksHarness(), rowHooks = hooksHarness()
+      try {
+        activeHooks = activityHooks
+        const tree = activityHooks.mount(activity, { ...props, wide: true })
+        const row = allNodes(tree).find(node => typeof node.type === 'function' && node.type.name === 'SessionRow')
+        activeHooks = rowHooks
+        const rendered = rowHooks.mount(row.type, row.props)
+        return allNodes(rendered).find(node => node.props.className === 'dsa-menu-trigger dsa-archive-btn').props.onClick()
+      } finally { rowHooks.unmount(); activityHooks.unmount(); activeHooks = hooks }
     },
   }
 }
@@ -435,10 +505,52 @@ test('hidden completion uses one system notification and keeps click navigation'
   assert.equal(f.notifications.length, 1)
   assert.equal(f.notifications[0].title, 'Session finished')
   assert.equal(f.notifications[0].options.body, 'Alpha task')
-  assert.equal(f.notifications[0].options.silent, false, 'the platform supplies the hidden-page sound')
-  assert.equal(f.oscillators.length, 0, 'no duplicate in-app cue')
+  assert.equal(f.notifications[0].options.silent, true, 'the system must not stack its sound on the plugin cue')
+  assert.equal(f.oscillators.length, 2, 'background delivery plays exactly one plugin cue')
   f.notifications[0].onclick()
   assert.deepEqual(f.opens, ['main'])
+})
+
+test('hidden completion still plays the cue without notification permission', async t => {
+  const f = notificationFixture({ visible: false, permission: 'default' })
+  t.after(() => f.unmount())
+  f.setIdle()
+  await tick()
+  assert.equal(f.notifications.length, 0)
+  assert.deepEqual(f.oscillators, [880, 1174.66])
+})
+
+test('muted background completion keeps both notification and plugin sound silent', async t => {
+  const f = notificationFixture({ visible: false })
+  t.after(() => f.unmount())
+  f.mute()
+  f.setIdle()
+  await tick()
+  assert.equal(f.notifications.length, 1)
+  assert.equal(f.notifications[0].options.silent, true)
+  assert.equal(f.oscillators.length, 0)
+})
+
+test('native main-view selection acknowledges immediately before a delayed observation lock', async t => {
+  const gate = deferred()
+  let blockObservation = false
+  const locks = { request(name, callback) {
+    return blockObservation && name === 'dsh-session-deck.observation'
+      ? gate.promise.then(callback) : Promise.resolve(callback())
+  } }
+  const f = notificationFixture({ locks })
+  t.after(() => f.unmount())
+  await tick()
+  f.setIdle()
+  await tick()
+  assert.equal(f.pending().pending, true)
+  blockObservation = true
+  f.setSession({ retainedBy: { mainView: 1 } })
+  assert.equal(f.pending().pending, false, 'native selection is acknowledged synchronously')
+  f.setSession({ retainedBy: {} })
+  gate.resolve()
+  await tick()
+  assert.equal(f.pending().pending, false, 'leaving before observation resumes cannot lose the read')
 })
 
 test('a completion already viewed in the foreground does not notify', async t => {
@@ -461,4 +573,180 @@ test('notification delivery dedupes the same completion across ledger instances'
   const second = createDeliveryLedger(storage)
   assert.equal(await second.claim('main', 1), false)
   assert.equal(await second.claim('main', 2), true)
+})
+
+
+const deferred = () => {
+  let resolve, reject
+  const promise = new Promise((yes, no) => { resolve = yes; reject = no })
+  return { promise, resolve, reject }
+}
+const delayedLock = () => {
+  const operation = deferred()
+  let callback
+  return { request(name, fn) { if (name === 'dsh-session-deck.observation') return Promise.resolve(fn()); callback = fn; return operation.promise.then(() => callback()) }, release: () => operation.resolve() }
+}
+
+test('a pending interaction is not a completion and its eventual finish emits once', async t => {
+  const f = notificationFixture()
+  t.after(() => f.unmount())
+  f.setIdle(new Map([['main', { running: false, pendingInteraction: { key: 'approval', kind: 'approval' }, completionUnread: true }]]))
+  await tick()
+  assert.equal(f.pending().pending, false)
+  assert.equal(f.oscillators.length, 0)
+  f.setIdle()
+  await tick()
+  assert.equal(f.pending().pending, true)
+  assert.equal(f.oscillators.length, 2)
+  f.render()
+  await tick()
+  assert.equal(f.oscillators.length, 2)
+})
+
+test('a parent waits for a stopped child that still needs interaction', () => {
+  const pending = createPendingStore()
+  const sessions = list([session('main', { running: true }), session('child', { origin: 'subagent', parentId: 'main', running: true })])
+  pending.observe(sessions, new Map())
+  for (const s of Object.values(sessions.byId)) s.running = false
+  assert.equal(pending.observe(sessions, new Map([['child', { running: false, pendingInteraction: { key: 'question' } }]])).length, 0)
+  assert.equal(pending.getSnapshot().main.pending, false)
+  assert.equal(pending.observe(sessions, new Map()).length, 1)
+  assert.equal(pending.getSnapshot().main.pending, true)
+})
+
+for (const reason of ['read', 'archived', 'restarted', 'waiting', 'unmounted']) {
+  test(`a delayed delivery is cancelled after the session is ${reason}`, async t => {
+    const lock = delayedLock(), f = notificationFixture({ visible: false, locks: lock })
+    t.after(() => f.unmount())
+    f.setIdle()
+    if (reason === 'read') { f.setVisible(true); f.setSession({ retainedBy: { mainView: 1 } }) }
+    if (reason === 'archived') f.setWorkspaces({ archivedSessionIds: ['main'] })
+    if (reason === 'restarted') f.setSession({ running: true })
+    if (reason === 'waiting') f.setIdle(new Map([['main', { running: false, pendingInteraction: { key: 'question' } }]]))
+    if (reason === 'unmounted') f.unmount()
+    lock.release()
+    await tick()
+    assert.equal(f.notifications.length, 0)
+    assert.equal(f.oscillators.length, 0)
+  })
+}
+
+test('a delayed delivery uses the current focus and sound preference', async t => {
+  const lock = delayedLock(), f = notificationFixture({ visible: false, locks: lock })
+  t.after(() => f.unmount())
+  f.setIdle()
+  f.setVisible(true)
+  f.mute()
+  lock.release()
+  await tick()
+  assert.equal(f.notifications.length, 0)
+  assert.equal(f.oscillators.length, 0)
+  assert.equal(f.pending().pending, true)
+})
+
+test('our archive request suppresses its stop before membership updates and permits later runs', async t => {
+  const operation = deferred(), f = notificationFixture({ archiveSession: () => operation.promise })
+  t.after(() => f.unmount())
+  const archive = f.archive()
+  f.setIdle()
+  await tick()
+  assert.equal(f.notifications.length, 0)
+  assert.equal(f.oscillators.length, 0)
+  operation.resolve()
+  await archive
+  assert.equal(f.pending().pending, false)
+  assert.equal(f.pending().running, false)
+  f.setWorkspaces({ archivedSessionIds: ['main'] })
+  f.setWorkspaces({ archivedSessionIds: [] })
+  await tick()
+  assert.equal(f.oscillators.length, 0, 'restoring never replays the archive stop')
+  f.setSession({ running: true })
+  f.setIdle()
+  await tick()
+  assert.equal(f.oscillators.length, 2, 'a new run after restore still notifies')
+})
+
+test('a failed archive does not suppress subsequent completion', async t => {
+  const f = notificationFixture({ archiveSession: () => Promise.reject(Error('archive failed')) })
+  t.after(() => f.unmount())
+  await f.archive()
+  f.setIdle()
+  await tick()
+  assert.equal(f.oscillators.length, 2)
+  assert.equal(f.pending().pending, true)
+})
+
+test('a denied audio resume settles without an unhandled rejection or queued cue', async t => {
+  const f = notificationFixture({ permission: 'default', audioState: 'suspended', resumeAudio: () => Promise.reject(Error('autoplay blocked')) })
+  t.after(() => f.unmount())
+  f.setIdle()
+  await tick()
+  assert.equal(f.oscillators.length, 0)
+  assert.equal(f.pending().pending, true)
+})
+
+test('reading a result during a suspended audio resume cancels the later cue', async t => {
+  const resume = deferred(), f = notificationFixture({ audioState: 'suspended', resumeAudio: () => resume.promise })
+  t.after(() => f.unmount())
+  f.setIdle()
+  await tick()
+  f.setSession({ retainedBy: { mainView: 1 } })
+  resume.resolve()
+  await tick()
+  assert.equal(f.oscillators.length, 0)
+  assert.equal(f.pending().pending, false)
+})
+
+test('a closed audio context is recreated for a later completion', async t => {
+  const f = notificationFixture()
+  t.after(() => f.unmount())
+  f.setIdle()
+  await tick()
+  assert.equal(f.audioContexts.length, 1)
+  f.audioContexts[0].state = 'closed'
+  f.advanceTime(500)
+  f.setSession({ running: true })
+  f.setIdle()
+  await tick()
+  assert.equal(f.audioContexts.length, 2)
+  assert.equal(f.oscillators.length, 4)
+})
+
+
+test('two independent tab observers serialize one physical completion and preserve its delivery revision', async () => {
+  const storage = memoryStorage(), a = createPendingStore(storage), b = createPendingStore(storage)
+  let tail = Promise.resolve()
+  const locks = { request(name, callback) { const next = tail.then(callback); tail = next.catch(() => {}); return next } }
+  const running = list([session('main', { running: true })]), idle = list([session('main')])
+  const snapshot = value => () => ({ list: value, statuses: new Map() })
+  await Promise.all([observePending(a, snapshot(running), locks), observePending(b, snapshot(running), locks)])
+  const events = (await Promise.all([observePending(a, snapshot(idle), locks), observePending(b, snapshot(idle), locks)])).flat()
+  assert.equal(events.length, 1, 'one physical stop generates one event across tabs')
+  const record = JSON.parse(storage.getItem(PENDING_KEY)).main
+  assert.equal(record.revision, events[0].revision, 'follower must not invalidate the genuine delivery revision')
+  assert.equal(record.pending, true)
+  const ledgers = [createDeliveryLedger(storage, locks), createDeliveryLedger(storage, locks)]
+  const claims = await Promise.all(ledgers.map(ledger => ledger.claim(events[0].id, events[0].revision)))
+  assert.equal(claims.filter(Boolean).length, 1)
+  await Promise.all([observePending(a, snapshot(running), locks), observePending(b, snapshot(running), locks)])
+  const nextRun = (await Promise.all([observePending(a, snapshot(idle), locks), observePending(b, snapshot(idle), locks)])).flat()
+  assert.equal(nextRun.length, 1)
+  assert.ok(nextRun[0].revision > events[0].revision)
+  assert.equal(await ledgers[0].claim(nextRun[0].id, nextRun[0].revision), true, 'next physical run still delivers')
+})
+
+test('queued observation reads the latest session and acknowledgement state inside its lock', async () => {
+  const pending = createPendingStore(memoryStorage())
+  const running = list([session('main', { running: true })]), idle = list([session('main')])
+  await observePending(pending, () => ({ list: running, statuses: new Map() }))
+  const operation = deferred()
+  const locks = { request(name, callback) { return operation.promise.then(callback) } }
+  let current = { list: idle, statuses: new Map(), options: { canAck: () => false } }
+  const queued = observePending(pending, () => current, locks)
+  current = { list: idle, statuses: new Map(), options: { canAck: () => true } }
+  operation.resolve()
+  const events = await queued
+  assert.equal(events.length, 1)
+  assert.equal(events[0].read, true, 'latest visibility/current-session state decides acknowledgement')
+  assert.equal(pending.getSnapshot().main.pending, false)
 })
