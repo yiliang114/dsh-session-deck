@@ -18,6 +18,10 @@ A community plugin with an English interface, no extra npm dependencies, and no 
 
 Switching views keeps your current conversation open. Session rows show the title, workspace, time, and status; their menus provide favorite, rename, fork, archive, and copy-ID actions.
 
+Use **More → Show archived** to find archived sessions across workspaces. Search by title, workspace, path, or session ID, then click the row’s **Restore** button to restore and open the original conversation. Clicking the title or row does not restore it. Restoration keeps its recorded workspace position; it does not restart stopped tasks or restore a former pin. Failed restorations stay in the dialog with an error so you can retry.
+
+When a session finishes while you are elsewhere, Session Deck plays a short two-note cue and marks the result unread. Each navigation tab has its own small blue dot: Workspaces and Activity reflect all unread sessions, while Favorites reflects only unread pinned sessions. Selecting a tab does not clear these indicators. Each workspace group carries its own unread dot. The browser tab also adds a blue dot to its favicon and prefixes the title with `(N)` until those sessions have been viewed. If the page is hidden or unfocused and browser notifications are already permitted, it also sends one silent system notification; clicking it opens that conversation. Opening a session clears only that session, and a dot disappears when its last unread member is viewed. Expanding or collapsing a group or changing views does not mark the group read.
+
 *Screenshots captured from a local DSH installation in English; session titles and workspace names anonymized.*
 
 | Activity | Favorites | Workspaces |
@@ -92,10 +96,13 @@ Maintainers: pushing to `main` queues an automatic patch release (for example, `
 ## How session status works
 
 - **Activity keeps all running, waiting, and unread sessions**, plus at most **20 ordinary recent sessions**, sorted by DSH's `updatedAt` rather than last-opened time. Favorites has no 20-session limit.
-- Favorites are **native DSH pins**, shared with the workspace tree. Archived, subagent, and empty sessions are omitted from the lists; ordinary forks remain visible.
+- Favorites are **native DSH pins**, shared with the workspace tree. Activity and Favorites omit archived, subagent, and empty sessions; ordinary forks remain visible. **Show archived** lists all known archived sessions, including archived empty sessions and subagents, with no 20-session limit.
 - Status priority is **waiting for a reply → running → unread**. A parent remains running while any known subagent descendant is running; ordinary forks do not propagate status to their source.
 - Aggregation covers only descendants known to DSH's session directory. **Independent background shell jobs are not tracked**: an idle session does not mean every process it launched has exited.
-- A session becomes unread when it and its known descendants finish while you are viewing something else. Opening it clears the marker. Persisted observations can recover completions across a refresh, but cannot reconstruct work that started and finished while every page was closed or was never observed.
+- A session becomes unread when it and its known descendants finish while you are viewing something else. Opening it clears the marker; starting another active cycle also clears the previous result’s unread marker. Native Workspaces navigation acknowledges the visible session before queued completion observation. Persisted observations can recover completions across a refresh, but cannot reconstruct work that started and finished while every page was closed or was never observed.
+- One observed finish produces at most one plugin cue and, when permitted in the background, one silent system notification. Reloads, restored unread state, and subagent-only finishes do not replay a completion alert. Waiting for user interaction is not completion. Stops initiated by Session Deck’s archive action are suppressed; a native/external archive whose stop reaches the client before archive membership may still appear as a manual stop. A second complete run is still new. Same-origin tabs use Web Locks when available to serialize completion observation and delivery; without working shared storage or lock support, duplicate prevention is best-effort, not guaranteed.
+- The brief cue is deliberately neutral rather than claiming success: the client status stream does not distinguish success, failure, or a manual stop. Sound is synthesized locally and defaults on. Use **More → Enable and test sound** in your own browser to enable the cue and preview it with a user gesture; the result confirms playback started, not physical speaker audibility. The plugin plays its cue in foreground and background alike; system notifications are silent to avoid duplicate sounds. Browser autoplay restrictions may require a pointer or keyboard interaction first. A browser notification is sent only when permission was already granted in site settings; the plugin does not request external push access or track individual chat messages.
+- Workspaces, Activity, and the browser tab reflect all eligible unread sessions (not individual chat messages); Favorites reflects the pinned subset; the page title shows the full count. Workspace dots aggregate the same sessions from the complete workspace membership, not from rendered or truncated rows. They cover direct workspace membership in flat and tree views; a collapsed tree ancestor does not roll up unread descendants. A hidden page or an open global panel does not count as viewing a session.
 - Archiving an active session requires a **Stop and archive** confirmation. There is no permanent-delete action. Switch to Workspaces for the complete native menus, including actions from other plugins.
 
 ## DSH compatibility and switcher position
@@ -109,6 +116,10 @@ This plugin declares an exact `engines.dsh` match of **0.2.1-rc.2**. Automatic t
 | Official **0.2.1-rc.3** | The published client and slot contract still lack the before-slot. | Not supported: full compatibility is unverified and the exact engine declaration excludes it. |
 
 On the recognized rc.2 layout, the adapter renders a React portal into its own DOM host immediately before the workspace region, below global panels such as Automation tasks. It does not write installed DSH files or replace the native workspace browser. An unknown DOM layout falls back to the footer. Disabling the plugin removes its scoped observer and DOM host.
+
+The More menu also lacks an item extension slot in rc.2. Session Deck inserts its own portal after Settings only when the native account trigger and menu match that version's layout. Native Settings, Feedback, account actions, and keyboard navigation remain available. Unknown or ambiguous layouts use a **Show archived** footer button instead. Disabling the plugin removes its menu container and observers.
+
+Workspace group headers likewise have no decoration slot in rc.2. The unread dot is added by a narrowly guarded adapter that recognizes native project rows and their real `workspace:<id>` key. It owns only its 6px marker, removes markers copied into animated exit rows, and does not identify groups by title or path. Unknown layouts leave the native tree untouched; Activity, sound, and session delivery continue to work. The always-mounted completion observer uses the official `shell.overlay` slot.
 
 The rc.3 published files were inspected on **2026-10-23**; that inspection does not establish plugin compatibility. Supporting another host version requires validating its session, workspace, slot, and UI APIs and DOM layout before widening `engines.dsh`.
 
@@ -134,6 +145,8 @@ Browser `localStorage` retains the original keys for compatibility:
 | --- | --- |
 | `dsh-session-activity.mode.v1` | Selected view. |
 | `dsh-session-activity.pending.v1` | Session IDs, observed running state, and completion/unread metadata. |
+| `dsh-session-activity.notified.v1` | Last notification revision delivered per session, used to avoid duplicate notices across same-origin tabs. |
+| `dsh-session-activity.sound.v1` | Whether the completion cue is enabled. |
 
 No conversation bodies are stored by the plugin. Favorites remain in DSH's native pinned data. View and unread state sync between tabs on the same origin, not across devices. If storage is unavailable, state stays in memory. Clearing browser storage resets this metadata; processed records are capped at 1,000, while running and unread records are retained.
 
