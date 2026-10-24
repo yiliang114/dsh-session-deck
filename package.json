@@ -7,9 +7,9 @@
     "access": "public",
     "registry": "https://registry.npmjs.org/"
   },
-  "keywords": ["dsh-plugin", "deepseek-harness", "sidebar", "sessions", "session-management", "favorites", "ai-agents"],
+  "keywords": ["dsh-plugin", "deepseek-harness", "sidebar", "sessions", "session-management", "session-navigation", "activity-view", "workspaces", "favorites", "ai-agents", "codex-inspired"],
   "type": "module",
-  "description": "Activity and Favorites views for DeepSeek Harness: track running, waiting, and unread sessions across workspaces.",
+  "description": "Codex-inspired activity and session management for DeepSeek Harness: track running, waiting, and unread sessions across workspaces.",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/yiliang114/dsh-session-deck.git"
