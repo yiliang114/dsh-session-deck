@@ -1,8 +1,10 @@
-# DSH Session Deck
+# DSH Session Deck — DeepSeek Harness 会话管理插件
 
 [English](https://github.com/yiliang114/dsh-session-deck/blob/main/README.md) · [npm](https://www.npmjs.com/package/@yiliang114/dsh-session-deck) · [最新发布](https://github.com/yiliang114/dsh-session-deck/releases/latest) · [发布 CI](https://github.com/yiliang114/dsh-session-deck/actions/workflows/publish.yml)
 
-**不用离开当前对话，就能掌握所有 DSH 工作区中的会话进展。** Session Deck 在 DeepSeek Harness 原生侧栏中加入 Activity 和 Favorites 视图，让你快速找到运行中的代理、等待回复的会话，以及尚未查看的完成结果。
+**受 Codex 活动视图启发的 DeepSeek Harness 会话管理插件。** Session Deck 在 DSH 原生侧栏中加入 Activity 和 Favorites 视图，跨工作区查看运行中、等待回复和未读会话，快速处理需要你关注的任务，并随时回到重要对话。
+
+活动视图的交互受到 Codex 启发，并结合 DSH 的工作区、会话状态和原生置顶会话做了适配。Session Deck 是独立的 DSH 社区插件。
 
 社区维护的第三方插件，默认英文界面，无额外 npm 依赖、无遥测，采用 [MIT 许可证](LICENSE)。
 

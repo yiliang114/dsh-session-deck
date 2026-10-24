@@ -1,8 +1,10 @@
-# DSH Session Deck
+# DSH Session Deck — Session Management for DeepSeek Harness
 
 [简体中文](https://github.com/yiliang114/dsh-session-deck/blob/main/README.zh-CN.md) · [npm](https://www.npmjs.com/package/@yiliang114/dsh-session-deck) · [Latest release](https://github.com/yiliang114/dsh-session-deck/releases/latest) · [Release CI](https://github.com/yiliang114/dsh-session-deck/actions/workflows/publish.yml)
 
-**Keep track of work across DSH workspaces without leaving your conversation.** Session Deck adds Activity and Favorites views to the native DeepSeek Harness sidebar, so you can spot running agents, reply to waiting sessions, and return to completed results.
+**A Codex-inspired activity view for DeepSeek Harness.** Session Deck adds Activity and Favorites views to the native DSH sidebar. Track running, waiting, and unread sessions across workspaces, reply to sessions that need your attention, and keep important conversations close with Favorites.
+
+The activity-view interaction is inspired by Codex and adapted to DSH's workspaces, session states, and native pinned sessions. Session Deck is an independent community plugin for DSH.
 
 A community plugin with an English interface, no extra npm dependencies, and no telemetry. Licensed under [MIT](LICENSE).
 
