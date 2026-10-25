@@ -191,6 +191,105 @@ test('archived sessions do not create a completion or unread record', () => {
   assert.equal(queue.getSnapshot().main, undefined)
 })
 
+test('confirmed external archive resets a running baseline before idle restoration', () => {
+  const queue = createPendingStore(memoryStorage())
+  const running = list([session('main', { running: true })]), idle = list([session('main')])
+  queue.observe(running, new Map())
+  assert.equal(queue.observe(idle, new Map(), { archivedIds: ['main'] }).length, 0)
+  assert.equal(queue.getSnapshot().main.running, false)
+  assert.equal(queue.getSnapshot().main.pending, false)
+  assert.equal(queue.getSnapshot().main.seeded, true)
+  const unread = new Map([['main', { completionUnread: true }]])
+  assert.equal(queue.observe(idle, unread).length, 0)
+  assert.equal(queue.getSnapshot().main.pending, false, 'native unread cannot reseed the archived result')
+  queue.observe(running, new Map())
+  assert.equal(queue.observe(idle, new Map()).length, 1, 'a new run after restoration still completes')
+})
+
+test('archive cleanup includes persisted records absent from a partial directory without observation churn', () => {
+  const storage = memoryStorage()
+  storage.setItem(PENDING_KEY, JSON.stringify({
+    archivedRun: { running: true, pending: false, seeded: false, revision: 1 },
+    archivedUnread: { running: false, pending: true, seeded: true, revision: 2 },
+    missingUnread: { running: false, pending: true, seeded: true, revision: 3 },
+    missingRun: { running: true, pending: false, seeded: false, revision: 4 },
+  }))
+  let writes = 0
+  const setItem = storage.setItem
+  storage.setItem = (...args) => { writes++; setItem(...args) }
+  const queue = createPendingStore(storage)
+  let changes = 0
+  queue.subscribe(() => changes++)
+  const options = { archivedIds: ['archivedRun', 'archivedUnread', 'unknownArchive'] }
+  assert.equal(queue.observe(list([]), new Map(), options).length, 0)
+  const snapshot = queue.getSnapshot()
+  for (const id of ['archivedRun', 'archivedUnread']) {
+    assert.equal(snapshot[id].running, false)
+    assert.equal(snapshot[id].pending, false)
+    assert.equal(snapshot[id].seeded, true)
+  }
+  assert.equal(snapshot.unknownArchive, undefined, 'archive history does not allocate idle records')
+  assert.equal(snapshot.missingUnread.pending, true, 'absence does not erase unread history')
+  assert.equal(snapshot.missingRun.running, true, 'absence does not erase an unarchived baseline')
+  for (let i = 0; i < 5; i++) queue.observe(list([]), new Map(), options)
+  assert.equal(queue.getSnapshot(), snapshot)
+  assert.equal(writes, 1)
+  assert.equal(changes, 1)
+  const reloaded = createPendingStore(storage)
+  assert.equal(reloaded.observe(list([session('archivedRun'), session('archivedUnread')]), new Map()).length, 0)
+  assert.equal(reloaded.getSnapshot().archivedRun.pending, false)
+  assert.equal(reloaded.getSnapshot().archivedUnread.pending, false)
+})
+
+test('archive resets tolerate stale running snapshots after restore and still observe the next run', () => {
+  for (const ownArchive of [false, true]) {
+    const queue = createPendingStore(memoryStorage())
+    const running = list([session('main', { running: true })]), idle = list([session('main')])
+    queue.observe(running, new Map())
+    if (ownArchive) queue.suppress('main')
+    else queue.observe(list([]), new Map(), { archivedIds: ['main'] })
+    const revision = queue.getSnapshot().main.revision
+    for (let i = 0; i < 3; i++) {
+      assert.equal(queue.observe(running, new Map()).length, 0)
+      assert.equal(queue.getSnapshot().main.running, false)
+      assert.equal(queue.getSnapshot().main.revision, revision)
+    }
+    assert.equal(queue.observe(idle, new Map()).length, 0)
+    assert.equal(queue.getSnapshot().main.pending, false)
+    queue.observe(running, new Map())
+    assert.equal(queue.observe(idle, new Map()).length, 1)
+    assert.equal(queue.getSnapshot().main.pending, true)
+  }
+})
+
+test('a pending own archive that fails preserves its completion baseline', () => {
+  const queue = createPendingStore(memoryStorage())
+  const running = list([session('main', { running: true })]), idle = list([session('main')])
+  queue.observe(running, new Map())
+  const snapshot = queue.getSnapshot()
+  assert.equal(queue.observe(idle, new Map(), { archivedIds: [], eligible: () => false }).length, 0)
+  assert.equal(queue.getSnapshot(), snapshot, 'temporary ineligibility cannot confirm an archive')
+  assert.equal(queue.observe(idle, new Map(), { archivedIds: [] }).length, 1)
+  assert.equal(queue.getSnapshot().main.pending, true)
+})
+
+test('confirmed archive records become eligible for bounded retention cleanup', () => {
+  const storage = memoryStorage()
+  const ids = Array.from({ length: 1005 }, (_, i) => `archived-${i}`)
+  storage.setItem(PENDING_KEY, JSON.stringify(Object.fromEntries(ids.map((id, i) => [id,
+    { running: i % 2 === 0, pending: i % 2 !== 0, seeded: false, revision: i + 1 },
+  ]))))
+  const queue = createPendingStore(storage)
+  assert.equal(Object.keys(queue.getSnapshot()).length, 1005)
+  queue.observe(list([]), new Map(), { archivedIds: ids })
+  assert.equal(Object.keys(queue.getSnapshot()).length, 1000)
+  assert.ok(Object.values(queue.getSnapshot()).every(r => !r.running && !r.pending && r.seeded))
+  const snapshot = queue.getSnapshot(), persisted = storage.getItem(PENDING_KEY)
+  queue.observe(list([]), new Map(), { archivedIds: ids })
+  assert.equal(queue.getSnapshot(), snapshot)
+  assert.equal(storage.getItem(PENDING_KEY), persisted)
+})
+
 test('delivery ledger serializes one claim per completion revision across tabs', async () => {
   const storage = memoryStorage()
   let tail = Promise.resolve()
@@ -594,6 +693,32 @@ test('resolved archived membership excludes a completion deferred during workspa
   assert.equal(f.pending().pending, false)
   assert.equal(f.notifications.length, 0)
   assert.equal(f.oscillators.length, 0)
+})
+
+test('native or other-tab archive restoration stays silent and the next run notifies', async t => {
+  const f = notificationFixture({ visible: false })
+  t.after(() => f.unmount())
+  await tick()
+  f.setWorkspaces({ archivedSessionIds: ['main'] })
+  f.setIdle(new Map([['main', { completionUnread: true }]]))
+  await tick()
+  assert.equal(f.pending().running, false)
+  assert.equal(f.pending().pending, false)
+  assert.equal(f.pending().seeded, true)
+  f.setWorkspaces({ archivedSessionIds: [] })
+  await tick()
+  f.render()
+  await tick()
+  assert.equal(f.pending().pending, false)
+  assert.equal(f.notifications.length, 0)
+  assert.equal(f.oscillators.length, 0)
+  f.setSession({ running: true })
+  await tick()
+  f.setIdle()
+  await tick()
+  assert.equal(f.pending().pending, true)
+  assert.equal(f.notifications.length, 1)
+  assert.equal(f.oscillators.length, 2)
 })
 
 test('hidden completion still plays the cue without notification permission', async t => {
