@@ -41,6 +41,15 @@ Requirements:
 - DSH Web GUI **0.2.1-rc.2**. This is the exact supported host version; other versions are unverified.
 - DSH's native sidebar, session, and workspace plugins enabled.
 
+Before installing, check the CLI versions and use the same profile as your running Web GUI:
+
+```sh
+node --version
+dsh --version
+```
+
+Expect Node.js `v22` or newer and DSH `0.2.1-rc.2`. These instructions assume you already have a working DSH Web GUI; if `dsh` is not found, install and start the [supported DSH host](https://github.com/deepseek-ai/deepseek-harness) first. If you launch DSH with a custom `DSH_HOME`, use that same value for plugin commands.
+
 **Migrating from an earlier installation:** disable and remove the old plugin instance in DSH's plugin manager **before installing from npm**, to avoid two instances controlling the sidebar. You can keep its browser storage.
 
 ```sh
@@ -50,6 +59,17 @@ dsh plugin --profile web add @yiliang114/dsh-session-deck@latest --ignore-script
 Replace `web` if you use another profile. Refresh your existing DSH GUI, then choose **Workspaces / Activity / Favorites** above the workspace region, below global panels. On the supported DSH 0.2.1-rc.2 layout, the plugin places the switcher there automatically without patching installed DSH files. The native workspace browser remains available in Workspaces. Refresh after client changes too; hot reload is not assumed.
 
 The plugin's own labels are English. To make the rest of DSH English too, use **More → Settings → General → Language → English**. Session titles remain in the language you wrote them.
+
+### First-run check (about two minutes)
+
+1. Finish or close DSH's first-run dialogs. In **Plugins**, confirm that `@yiliang114/dsh-session-deck` is installed and enabled, then refresh the page.
+2. Choose **Activity** and open an existing conversation that has started at least one turn. Newly created empty sessions are intentionally hidden, even if pinned; an empty list on a fresh profile is expected.
+3. Hover over that session, open its actions menu, and choose **Add to favorites (pin)**. It should appear in **Favorites** and show a native pin in **Workspaces**.
+4. Switch between the three views: the current conversation should stay open. Refresh again: Favorites should still contain the pinned session.
+
+If the switcher is missing, check that the plugin was installed into the Web GUI's profile and `DSH_HOME`, is enabled, and that the host version matches. The native sidebar, session, and workspace plugins must also be enabled. Look near the sidebar footer too: that is the fallback position when the supported workspace boundary cannot be found. See [Compatibility](#dsh-compatibility-and-switcher-position).
+
+On 2026-10-25, version **0.1.8** passed this installation, navigation, favorites, archive/restore, GUI uninstall, and reinstall check in an isolated profile on DSH `0.2.1-rc.2` with Node `22.20.0`. Session checks used local synthetic records without model calls; this does not verify live model-state transitions, OS notification delivery, or physical audio output, nor does it certify later versions.
 
 ### Alternative: link a local checkout
 
@@ -152,7 +172,19 @@ Browser `localStorage` retains the original keys for compatibility:
 
 No conversation bodies are stored by the plugin. Favorites remain in DSH's native pinned data. View and unread state sync between tabs on the same origin, not across devices. If storage is unavailable, state stays in memory. Clearing browser storage resets this metadata; processed records are capped at 1,000, while running and unread records are retained.
 
-Disable or remove **`@yiliang114/dsh-session-deck`** in DSH's plugin manager to stop using it. Disabling removes the adapter's observer and DOM host and restores the native workspace browser. Removal does not clear browser storage or undo a legacy host patch; use the rollback command separately if needed.
+## Disable or uninstall
+
+Use **Plugins → @yiliang114/dsh-session-deck**. Turn off the enable switch to disable it, or choose **Uninstall** and confirm to remove the package. Then refresh the GUI: the native workspace tree should remain, and **Activity**, **Favorites**, and the plugin's **More** menu entries should be gone. Disabling also removes the adapter's observer and DOM host.
+
+Your conversations and native pinned data remain. Uninstalling does not clear the browser metadata listed above or undo a legacy host patch; use the rollback command separately if needed.
+
+If you prefer the CLI, use the same profile and `DSH_HOME` as your Web GUI:
+
+```sh
+dsh plugin --profile web remove @yiliang114/dsh-session-deck
+```
+
+After CLI removal, restart that DSH Web instance and refresh the page. In the rc.2 acceptance check, the running host retained the plugin after CLI removal until restart; GUI uninstallation unloaded it immediately. Do not add `--ignore-scripts` to `remove`: the bundled pnpm does not accept that option for removal.
 
 ## Development
 
