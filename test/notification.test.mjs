@@ -262,6 +262,50 @@ test('archive resets tolerate stale running snapshots after restore and still ob
   }
 })
 
+test('an unchanged archived tab preserves another tab’s restored run and completion', () => {
+  const storage = memoryStorage(), a = createPendingStore(storage), b = createPendingStore(storage)
+  const running = list([session('main', { running: true })]), idle = list([session('main')])
+  const archived = { archivedIds: ['main'] }
+  a.observe(running, new Map()); b.observe(running, new Map())
+  a.observe(list([]), new Map(), archived)
+  b.observe(list([]), new Map(), archived)
+  b.observe(idle, new Map(), { archivedIds: [] })
+  b.observe(running, new Map(), { archivedIds: [] })
+  const runRevision = b.getSnapshot().main.revision
+  a.sync()
+  a.observe(list([]), new Map(), archived)
+  assert.equal(a.getSnapshot().main.running, true, 'unchanged membership cannot clear a newer shared run')
+  assert.equal(a.getSnapshot().main.revision, runRevision)
+  b.sync()
+  const [completion] = b.observe(idle, new Map(), { archivedIds: [] })
+  assert.ok(completion, 'the explicitly observed new run still completes')
+  assert.equal(b.getSnapshot().main.pending, true)
+  a.sync()
+  a.observe(list([]), new Map(), archived)
+  assert.equal(a.getSnapshot().main.pending, true, 'unchanged membership cannot clear a newer shared result')
+  assert.equal(a.getSnapshot().main.revision, completion.revision)
+})
+
+test('observing unarchive permits a later archive to reset the shared record again', () => {
+  const queue = createPendingStore(memoryStorage())
+  const running = list([session('main', { running: true })]), idle = list([session('main')])
+  const archived = { archivedIds: ['main'] }
+  queue.observe(running, new Map())
+  queue.observe(list([]), new Map(), archived)
+  queue.observe(idle, new Map(), { archivedIds: [] })
+  queue.observe(running, new Map())
+  assert.equal(queue.observe(idle, new Map()).length, 1)
+  assert.equal(queue.getSnapshot().main.pending, true)
+  const revision = queue.getSnapshot().main.revision
+  queue.observe(list([]), new Map(), archived)
+  assert.equal(queue.getSnapshot().main.running, false)
+  assert.equal(queue.getSnapshot().main.pending, false)
+  assert.equal(queue.getSnapshot().main.seeded, true)
+  assert.ok(queue.getSnapshot().main.revision > revision)
+  assert.equal(queue.observe(idle, new Map(), { archivedIds: [] }).length, 0)
+  assert.equal(queue.getSnapshot().main.pending, false)
+})
+
 test('a pending own archive that fails preserves its completion baseline', () => {
   const queue = createPendingStore(memoryStorage())
   const running = list([session('main', { running: true })]), idle = list([session('main')])
