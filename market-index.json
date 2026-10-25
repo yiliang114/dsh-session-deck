@@ -99,6 +99,17 @@
             "type": "npm",
             "registry": "https://registry.npmjs.org"
           }
+        },
+        {
+          "version": "0.1.10",
+          "publishTimestamp": 1792907553,
+          "engines": {
+            "dsh": "0.2.1-rc.2"
+          },
+          "source": {
+            "type": "npm",
+            "registry": "https://registry.npmjs.org"
+          }
         }
       ]
     }
